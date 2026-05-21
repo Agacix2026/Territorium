@@ -1,0 +1,9 @@
+@media (max-width: 991px) {
+  .app-layout { flex-direction: column; }
+  .main-content { padding: var(--spacing-md); }
+  .sidebar { display: none; }
+}
+@media (max-width: 576px) {
+  .logo { font-size: 1.2rem; }
+  .main-content { padding: var(--spacing-sm); }
+}

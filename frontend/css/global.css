@@ -1,0 +1,15 @@
+:root {
+  --primary-color: #0f766e;
+  --secondary-color: #14b8a6;
+  --background-color: #f4f7fb;
+  --text-color: #1e293b;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 32px;
+  --border-radius: 10px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background-color: var(--background-color); color: var(--text-color); font-family: 'Poppins', sans-serif; }
+a { text-decoration: none; color: inherit; }
+ul { list-style: none; padding-left: 0; }
+a:focus, button:focus, input:focus { outline: 3px solid #0077cc; outline-offset: 2px; }

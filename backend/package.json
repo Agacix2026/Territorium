@@ -1,0 +1,11 @@
+{
+  "name": "territorium-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "npx nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

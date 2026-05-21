@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Territorium | Zarządzanie Nieruchomościami</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    
+    <link rel="stylesheet" href="css/global.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body class="bg-light min-vh-100 d-flex flex-column">
+
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #0f766e, #115e59); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div class="container-fluid px-4">
+                <a class="navbar-brand fw-bold" href="#logowanie">Territorium GovTech</a>
+                
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Przełącz nawigację">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0 gap-2">
+                        <li class="nav-item"><a href="#mapa" class="nav-link text-white fw-medium">Mapa GIS</a></li>
+                        <li class="nav-item"><a href="#logowanie" class="nav-link text-white fw-medium">Logowanie</a></li>
+                        <li class="nav-item"><a href="#umowy" class="nav-link text-white fw-medium">Umowy</a></li>
+                        <li class="nav-item"><a href="#aukcje" class="nav-link text-white fw-medium">Aukcje</a></li>
+                        <li class="nav-item"><a href="#dokumenty" class="nav-link text-white fw-medium">Dokumenty</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container py-5 flex-grow-1">
+
+        <div id="logowanie" class="route-view d-none">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="card shadow border-0 mt-3">
+                        <div class="card-header bg-dark text-white text-center py-4">
+                            <h2 class="h4 mb-0 fw-bold">Autoryzacja Użytkownika</h2>
+                        </div>
+                        <div class="card-body p-4">
+                            <form id="formularzAutoryzacji" class="needs-validation" novalidate>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Adres e-mail</label>
+                                    <input type="email" class="form-control" id="loginEmail" required>
+                                    <div class="invalid-feedback">Wprowadź poprawny e-mail.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Hasło</label>
+                                    <input type="password" class="form-control" id="loginHaslo" required>
+                                    <div class="invalid-feedback">Hasło jest wymagane.</div>
+                                </div>
+
+                                <div class="mb-4 bg-white p-3 rounded border shadow-sm">
+                                    <div class="form-check">
+                                        <input class="form-check-input border-secondary" type="checkbox" id="checkObywatel" required>
+                                        <label class="form-check-label fw-bold text-primary" for="checkObywatel">
+                                            Potwierdzam, że jestem obywatelem Rzeczypospolitej Polskiej.
+                                        </label>
+                                        <div class="invalid-feedback mt-2">
+                                            Zgodnie z regulaminem, obywatelstwo polskie jest rygorystycznie wymagane.
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button class="btn btn-primary w-100 py-2 fw-bold" type="submit" id="btnLogowanie">
+                                    Utwórz konto / Zaloguj
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="mapa" class="route-view">
+            <h2 class="mb-4">Interaktywna Mapa GIS</h2>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="placeholder-glow">
+                        <div class="placeholder w-100" style="height: 400px; border-radius: 0.375rem;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="umowy" class="route-view d-none">
+            <h2 class="mb-4">Zarządzanie Umowami Dzierżawy</h2>
+            <div class="card shadow-sm border-0 p-4">
+                <form id="formularzUmowy" class="needs-validation" novalidate>
+                    <div class="mb-3">
+                        <label class="form-label">Data Rozpoczęcia</label>
+                        <input type="date" id="dataStart" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data Zakończenia</label>
+                        <input type="date" id="dataKoniec" class="form-control" required>
+                        <div class="invalid-feedback" id="bladDaty">Wybierz poprawną datę.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="btnZapiszUmowe">
+                        <span class="spinner-border spinner-border-sm d-none" id="spinnerLadowania" role="status" aria-hidden="true"></span>
+                        Zapisz Umowę
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div id="aukcje" class="route-view d-none">
+            <h2 class="mb-4">Panel Aukcji Nieruchomości</h2>
+            <div class="alert alert-info shadow-sm">Moduł w przygotowaniu. Czekamy na HTML Weroniki.</div>
+        </div>
+
+        <div id="dokumenty" class="route-view d-none">
+            <div class="gov-card">
+                <h2 class="mb-3">Dokumentacja Techniczna</h2>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-8">
+                        <input type="text" id="documentName" class="form-control" placeholder="Nazwa dokumentu" />
+                    </div>
+                    <div class="col-md-4">
+                        <button id="addDocumentBtn" class="btn btn-success w-100">Dodaj plik</button>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-dark">
+                            <tr><th>ID</th><th>Nazwa</th><th>Typ</th><th>Akcja</th></tr>
+                        </thead>
+                        <tbody id="documentsTableBody">
+                            <tr><td>1</td><td>Mapa działki Kraków</td><td><span class="badge bg-danger">PDF</span></td><td><button class="btn btn-sm btn-primary download-btn">Pobierz</button></td></tr>
+                            <tr><td>2</td><td>Plan zagospodarowania przestrzennego</td><td><span class="badge bg-danger">PDF</span></td><td><button class="btn btn-sm btn-primary download-btn">Pobierz</button></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <button id="toggleDocumentsBtn" class="btn btn-outline-secondary">Pokaż więcej</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-dark text-white text-center py-3 mt-auto w-100">
+        <p class="mb-0">Territorium © 2026. System GovTech.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="js/api.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/router.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/contracts.js"></script>
+    <script src="js/documents.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>
