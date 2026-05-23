@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnLogowanie.textContent = 'Utwórz konto / Zaloguj';
             
             // Przekierowanie zalogowanego na mapę (Wykorzystanie routera Oliwii)
-            window.location.hash = '#kataster';
+            window.location.hash = '#mapa';
             
         }, 1000);
     });
