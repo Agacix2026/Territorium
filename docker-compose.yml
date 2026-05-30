@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: territorium_db
     volumes:
       - pg-data:/var/lib/postgresql/data
+      # DODAJCIE TĘ LINIJKĘ (uruchamia SQL przy starcie):
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     # Port 5432 jest ukryty przed światem zewnętrznym, dostępny tylko w sieci Dockera
 
   # 2. BACKEND API (Node.js)
@@ -21,6 +23,7 @@ services:
       - ./backend:/app
       - /app/node_modules
     command: npm run dev
+    restart: on-failure
     environment:
       DATABASE_URL: postgresql://root:secretpassword@db:5432/territorium_db
       NODE_ENV: development
