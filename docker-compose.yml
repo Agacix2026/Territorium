@@ -18,7 +18,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "3100:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 31XX)
+      - "8303:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 31XX)
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -34,7 +34,7 @@ services:
   frontend:
     image: nginx:alpine
     ports:
-      - "3200:80" # Lokalnie uruchamiamy na porcie 3200 (na serwerze zmienisz na swoje 32XX)
+      - "8302:80" # Lokalnie uruchamiamy na porcie 3200 (na serwerze zmienisz na swoje 32XX)
     volumes:
       # Bind Mount: łączy pliki na Twoim dysku z serwerem. Zmiany w HTML widać od razu!
       - ./frontend:/usr/share/nginx/html:ro
