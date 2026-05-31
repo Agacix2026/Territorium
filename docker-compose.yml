@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.3'
 
 services:
   # 1. BAZA DANYCH (PostgreSQL + PostGIS dla map)
@@ -18,7 +18,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8303:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 31XX)
+      - "8303:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 8303)
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -34,7 +34,7 @@ services:
   frontend:
     image: nginx:alpine
     ports:
-      - "8302:80" # Lokalnie uruchamiamy na porcie 3200 (na serwerze zmienisz na swoje 32XX)
+      - "8302:80" # Lokalnie uruchamiamy na porcie 3200 (na serwerze zmienisz na swoje 8302)
     volumes:
       # Bind Mount: łączy pliki na Twoim dysku z serwerem. Zmiany w HTML widać od razu!
       - ./frontend:/usr/share/nginx/html:ro

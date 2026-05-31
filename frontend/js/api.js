@@ -1,31 +1,25 @@
-// Zmienione z localhost:3100 na adres serwera i port 8303
 const API_BASE_URL = 'http://149.156.194.192:8303/api';
-const API = {
-   async request(endpoint, method = 'GET', data = null) {
-        const options = { method: method, headers: { 'Content-Type': 'application/json' } };
-       
-        // --- ZADANIE OLIWII: AUTOMATYCZNA AUTORYZACJA ---
-        // Zgodnie z prośbą zespołu, tymczasowo wpisujemy token "na twardo",
-        // aby odblokować pracę dziewczyn, dopóki Agata nie skończy logowania.
-        
-        const token = "tymczasowy-testowy-token-dla-zespolu"; 
-        
-        // Gdy Agata skończy swój moduł, po prostu skasujecie linijkę wyżej, 
-        // a odkomentujecie linijkę poniżej:
-        // const token = localStorage.getItem('token');
+//Lokalnie: http://localhost:3100/api
 
-        // Automatyczne doklejanie nagłówka autoryzacji (z pominięciem logowania i rejestracji)
+const API = {
+    async request(endpoint, method = 'GET', data = null) {
+        const options = { method: method, headers: { 'Content-Type': 'application/json' } };
+        
+        // Pobieranie prawdziwego tokena z logowania
+        const token = localStorage.getItem('jwt_token');
+
+        // Automatyczne doklejanie nagłówka autoryzacji (z pominięciem logowania/rejestracji)
         if (token && !endpoint.includes('/login') && !endpoint.includes('/register')) {
             options.headers['Authorization'] = `Bearer ${token}`;
         }
-        // -------------------------------------------------
 
         if (data) options.body = JSON.stringify(data);
         
         try {
             const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-            if (!response.ok) throw new Error(`Błąd serwera: ${response.status}`);
-            return await response.json();
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || `Błąd serwera: ${response.status}`);
+            return result;
         } catch (error) {
             console.error(`[API Error] ${method} ${endpoint}:`, error);
             throw error;
