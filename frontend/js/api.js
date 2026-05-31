@@ -3,10 +3,16 @@ const API_BASE_URL = 'http://149.156.194.192:8303/api';
 const API = {
    async request(endpoint, method = 'GET', data = null) {
         const options = { method: method, headers: { 'Content-Type': 'application/json' } };
-        
+       
         // --- ZADANIE OLIWII: AUTOMATYCZNA AUTORYZACJA ---
-        // Wyciągamy token z pamięci przeglądarki (zapisany wcześniej podczas logowania)
-        const token = localStorage.getItem('token');
+        // Zgodnie z prośbą zespołu, tymczasowo wpisujemy token "na twardo",
+        // aby odblokować pracę dziewczyn, dopóki Agata nie skończy logowania.
+        
+        const token = "tymczasowy-testowy-token-dla-zespolu"; 
+        
+        // Gdy Agata skończy swój moduł, po prostu skasujecie linijkę wyżej, 
+        // a odkomentujecie linijkę poniżej:
+        // const token = localStorage.getItem('token');
 
         // Automatyczne doklejanie nagłówka autoryzacji (z pominięciem logowania i rejestracji)
         if (token && !endpoint.includes('/login') && !endpoint.includes('/register')) {
