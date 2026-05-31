@@ -1,0 +1,9 @@
+# Ignorowane foldery
+node_modules/
+backend/node_modules/
+
+# Ignorowane pliki środowiskowe (hasła)
+.env
+
+# Pliki systemowe
+.DS_Store
