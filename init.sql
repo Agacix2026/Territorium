@@ -9,6 +9,16 @@ CREATE TABLE Uzytkownicy (
     rola VARCHAR(50) DEFAULT 'Mieszkaniec'
 );
 
+-- Skrypt inicjalizujący Admina (hasło: admin123)
+INSERT INTO Uzytkownicy (login, haslo_hash, rola) 
+VALUES (
+    'admin@urzad.pl', 
+    '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 
+    'Admin'
+) 
+ON CONFLICT (login) 
+DO UPDATE SET rola = 'Admin';
+
 -- 3. KOD BEATY: Nieruchomości (Tabela nadrzędna)
 CREATE TABLE Nieruchomosci (
     ID SERIAL PRIMARY KEY,

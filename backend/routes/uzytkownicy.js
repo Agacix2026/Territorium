@@ -97,4 +97,18 @@ router.post('/login', async (req, res) => {
     }
 });
 
+router.patch('/:id/rola', async (req, res) => {
+    try {
+        const { nowaRola } = req.body;
+        const targetUserId = req.params.id;
+        
+        // Tutaj docelowo w Tygodniu 7 dodasz weryfikację tokena Admina
+        await pool.query('UPDATE Uzytkownicy SET rola = $1 WHERE id = $2', [nowaRola, targetUserId]);
+        
+        res.status(200).json({ message: `Rola użytkownika ${targetUserId} została zmieniona na ${nowaRola}.` });
+    } catch (error) {
+        res.status(500).json({ error: 'Błąd podczas zmiany roli.' });
+    }
+});
+
 module.exports = router;
