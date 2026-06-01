@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db'); // Naprawiona ścieżka do globalnej bazy Oliwii
+const pool = require('../../../backend/db'); // Naprawiona ścieżka do globalnej bazy Oliwii
 
 // GET DOCUMENTS
 router.get('/', async (req, res) => {

@@ -263,24 +263,14 @@
         <div id="dokumenty" class="route-view d-none">
             <div class="gov-card bg-white" style="border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.5rem;">
                 <h2 class="mb-3">Dokumentacja Techniczna</h2>
-                <div class="row g-3 mb-4">
-                    <div class="col-md-8">
-                        <input type="text" id="documentName" class="form-control" placeholder="Nazwa dokumentu" />
-                    </div>
-                    <div class="col-md-4">
-                        <button id="addDocumentBtn" class="btn btn-success w-100">Dodaj plik</button>
-                    </div>
-                </div>
-
+                
                 <div class="table-responsive">
                     <table class="table align-middle">
                         <thead class="table-dark">
-                            <tr><th>ID</th><th>Nazwa</th><th>Typ</th><th>Akcja</th></tr>
+                            <tr><th>ID</th><th>Nazwa i Powiązanie</th><th>Typ</th><th>Akcja</th></tr>
                         </thead>
                         <tbody id="documentsTableBody">
-                            <tr><td>1</td><td>Mapa działki Kraków</td><td><span class="badge bg-danger">PDF</span></td><td><button class="btn btn-sm btn-primary download-btn">Pobierz</button></td></tr>
-                            <tr><td>2</td><td>Plan zagospodarowania przestrzennego</td><td><span class="badge bg-danger">PDF</span></td><td><button class="btn btn-sm btn-primary download-btn">Pobierz</button></td></tr>
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
                 <div class="text-center mt-3">
@@ -428,63 +418,44 @@
                 </div>
             </section>
 
-            <section class="mb-4">
+           <section class="mb-4">
                 <div class="gov-card p-0 overflow-hidden border-0 shadow-sm bg-white" style="border-radius: 12px; border: 1px solid #e5e7eb;">
-                    <div class="gov-card-header px-4 pt-4 pb-3 m-0 border-bottom d-flex justify-content-between align-items-center bg-light">
+                    <div class="gov-card-header px-4 pt-4 pb-3 m-0 border-bottom bg-light">
                         <h2 class="h6 text-dark fw-bold mb-0"><i class="bi bi-folder2-open me-2 text-primary"></i>Dodaj nowy dokument techniczny</h2>
                     </div>
-                    <div class="p-4 border-bottom bg-light">
-                        <form id="formNowyDokument" class="row g-3 align-items-end">
-                            <div class="col-md-5">
-                                <label for="docName" class="form-label small fw-bold text-muted mb-1">Nazwa pliku w systemie</label>
-                                <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="docName" placeholder="np. Wypis_N102.pdf" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="docPlotRef" class="form-label small fw-bold text-muted mb-1">Powiąż z obiektem katastralnym</label>
-                                <select class="form-select form-select-sm border-0 shadow-sm" id="docPlotRef" required>
-                                    <option selected disabled value="">Wybierz działkę...</option>
-                                    <option value="N/101">Działka N/101</option>
-                                    <option value="N/102">Działka N/102</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <button type="submit" class="btn btn-dark btn-sm w-100 shadow-sm" id="btnDodajPlik"><i class="bi bi-cloud-arrow-up me-2"></i>Wgraj plik</button>
+                    <div class="p-4">
+                        <form id="formularzDokumentuUrzednik" novalidate onsubmit="return false;">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Nazwa dokumentu technicznego</label>
+                                    <input type="text" id="documentNameUrzednik" class="form-control form-control-sm" placeholder="np. Wyrys z mapy geodezyjnej" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">ID Powiązanego Obiektu</label>
+                                    <select id="documentObiektIdUrzednik" class="form-select form-select-sm">
+                                        <option value="101">N/101 (Działka)</option>
+                                        <option value="102">N/102 (Działka)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">Typ struktury</label>
+                                    <select id="documentObiektTypUrzednik" class="form-select form-select-sm">
+                                        <option value="dzialka">Działka gruntu</option>
+                                        <option value="budynek">Budynek / Lokal</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="button" id="addDocumentBtnUrzednik" class="btn btn-success btn-sm w-100"><i class="bi bi-cloud-arrow-up me-1"></i> Wyślij do bazy</button>
+                                </div>
                             </div>
                         </form>
                     </div>
-                    
-                    <div class="table-responsive">
-                        <table class="table table-gov align-middle mb-0">
-                            <thead>
-                                <tr><th>ID Dokumentu</th><th>Nazwa pliku</th><th>Powiązanie</th><th class="text-end">Pobieranie</th></tr>
-                            </thead>
-                            <tbody id="dokumenty-table-body-panel">
-                                <tr><th scope="row" class="text-muted">DOC/2026/01</th><td class="fw-medium"><i class="bi bi-filetype-pdf text-danger me-2 fs-5"></i>wypis_z_rejestru_gruntow_N101.pdf</td><td><span class="badge bg-secondary bg-opacity-10 text-secondary">Działka N/101</span></td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary btn-pobierz-doc"><i class="bi bi-download me-1"></i>Pobierz</button></td></tr>
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             </section>
-        </div>
 
-    </main>
-
-    <footer class="bg-dark text-white text-center py-3 mt-auto w-100">
-        <p class="mb-0">Territorium © 2026. System GovTech.</p>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+        </div> </main> <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script src="js/api.js"></script>
-    <script src="js/state.js"></script>
-    <script src="js/router.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/contracts.js"></script>
     <script src="js/documents.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/mapa.js"></script>
-    <script src="js/auctions.js"></script>
 </body>
 </html>
