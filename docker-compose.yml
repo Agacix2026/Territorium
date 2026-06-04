@@ -18,7 +18,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "3100:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 8303)
+      - "3000:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 8303)
     volumes:
       - ./backend:/app
       - /app/node_modules

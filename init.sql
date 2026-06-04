@@ -25,7 +25,8 @@ CREATE TABLE Nieruchomosci (
     wspolrzedne GEOMETRY(Polygon, 4326) NOT NULL, 
     powierzchnia NUMERIC NOT NULL,
     status VARCHAR(50) NOT NULL,
-    przeznaczenie VARCHAR(100) NOT NULL
+    przeznaczenie VARCHAR(100) NOT NULL,
+    cena NUMERIC(12, 2) DEFAULT 0
 );
 
 -- 4. KOD ANI: Umowy (Klucze obce do Użytkowników i Nieruchomości)
@@ -58,6 +59,7 @@ CREATE TABLE dokumenty (
 -- 6. KOD WERONIKI: Aukcje i Logi Licytacji
 CREATE TABLE Aukcje (
     id SERIAL PRIMARY KEY,
+    id_nieruchomosci INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
     id_wlasciciela INTEGER REFERENCES Uzytkownicy(id) ON DELETE RESTRICT,
     tytul VARCHAR(255) NOT NULL,
     opis TEXT NOT NULL,

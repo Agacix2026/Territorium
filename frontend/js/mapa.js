@@ -48,89 +48,101 @@ document.addEventListener('DOMContentLoaded', () => {
     dzialkaModal.show();
   }
 
-  // NOWA IMPLEMENTACJA: Renderowanie geometrii na mapie oraz pętla dla sidebaru
   function renderujDzialki(daneZ_API) {
+    // 1. Czyszczenie kontenerów przed renderowaniem
     plotListContainer.innerHTML = '';
-    
-    // Konwertujemy płaską listę z bazy danych na pełnoprawny format GeoJSON akceptowany przez Leafleta
+    const adminTableBody = document.getElementById('dzialki-table-body');
+    if (adminTableBody) adminTableBody.innerHTML = '';
+
+    // 2. Przygotowanie danych GeoJSON dla mapy Leaflet
     const geoJsonData = {
-      type: "FeatureCollection",
-      features: daneZ_API.map(dzialka => {
-        // Ponieważ w specyfikacji tabeli Nieruchomosci z bazy nie ma pól 'numer' i 'cena' (cena jest w Aukcjach),
-        // mapujemy je bezpiecznie na unikalne identyfikatory lub teksty informacyjne.
-        return {
-          type: "Feature",
-          geometry: dzialka.wspolrzedne, // Nasz obiekt geometrii z PostGIS sparsowany przez backend do JSONa
-          properties: {
-            id: dzialka.id,
-            numer: `D/${dzialka.id}`, 
-            typ: dzialka.przeznaczenie, // Z bazy pobieramy 'przeznaczenie', mapujemy na frontendowy 'typ'
-            pow: `${dzialka.powierzchnia} m²`,
-            cena: dzialka.status === 'Aktywna licytacja' ? 'Sprawdź panel aukcji' : 'Niedostępna',
-            status: dzialka.status
-          }
-        };
-      })
+        type: "FeatureCollection",
+        features: daneZ_API.map(dzialka => {
+            return {
+                type: "Feature",
+                geometry: dzialka.wspolrzedne, 
+                properties: {
+                    id: dzialka.id,
+                    numer: `D/${dzialka.id}`, 
+                    typ: dzialka.przeznaczenie,
+                    pow: `${dzialka.powierzchnia} m²`,
+                    cena: dzialka.cena ? `${parseFloat(dzialka.cena).toLocaleString('pl-PL')} PLN` : 'Do ustalenia',
+                    status: dzialka.status
+                }
+            };
+        })
     };
 
-    // Tworzymy dynamiczną warstwę GeoJSON w Leaflet
+    // 3. Renderowanie na mapie
+    if (leafletGeoJsonLayer) map.removeLayer(leafletGeoJsonLayer);
+    
     leafletGeoJsonLayer = L.geoJSON(geoJsonData, {
-      style: function (feature) {
-        const kolorBootstrap = pobierzKolor(feature.properties.typ);
-        
-        // Mapujemy nazwy stylów Bootstrapa na rzeczywiste kolory HEX dla mapy
-        let kolorHex = "#3388ff"; // Domyślny niebieski (Mieszkalne)
-        if (kolorBootstrap === 'info') kolorHex = "#0dcaf0"; // Jasnoniebieski (Usługowe)
-        if (kolorBootstrap === 'dark') kolorHex = "#212529"; // Czarny (Przemysłowe)
-        if (feature.properties.status === 'Aktywna licytacja') kolorHex = "#ffc107"; // Żółty ostrzegawczy dla licytacji
+        style: function (feature) {
+            const kolorBootstrap = pobierzKolor(feature.properties.typ);
+            let kolorHex = "#3388ff"; 
+            if (kolorBootstrap === 'info') kolorHex = "#0dcaf0"; 
+            if (kolorBootstrap === 'dark') kolorHex = "#212529"; 
+            if (feature.properties.status === 'Aktywna licytacja') kolorHex = "#ffc107"; 
 
-        return {
-          color: kolorHex,
-          weight: 2,
-          fillColor: kolorHex,
-          fillOpacity: 0.35
-        };
-      },
-      onEachFeature: function (feature, layer) {
-        // Po kliknięciu w dowolny narysowany kształt (poligon) na mapie, uruchamiamy Wasz modal
-        layer.on('click', () => {
-          otworzSzczegoly(feature.properties);
-        });
-      }
+            return { color: kolorHex, weight: 2, fillColor: kolorHex, fillOpacity: 0.35 };
+        },
+        onEachFeature: function (feature, layer) {
+            layer.on('click', () => otworzSzczegoly(feature.properties));
+        }
     }).addTo(map);
 
-    // Automatyczne dopasowanie kamery mapy, aby wyśrodkowała się i objęła wszystkie działki z bazy
-    if (geoJsonData.features.length > 0) {
-      map.fitBounds(leafletGeoJsonLayer.getBounds());
-    }
+    if (geoJsonData.features.length > 0) map.fitBounds(leafletGeoJsonLayer.getBounds());
 
-    // Renderowanie listy nieruchomości w bocznym panelu (Sidebar)
+    // 4. Renderowanie Sidebaru i Tabeli Urzędnika
     geoJsonData.features.forEach(feature => {
-      const dzialka = feature.properties;
-      const czyLicytacja = dzialka.status === 'Aktywna licytacja';
-      const kolor = pobierzKolor(dzialka.typ);
+        const dzialka = feature.properties;
+        const kolor = pobierzKolor(dzialka.typ);
+        const czyLicytacja = dzialka.status === 'Aktywna licytacja';
 
-      const karta = document.createElement('button');
-      karta.type = 'button';
-      karta.className = `plot-list-card d-flex gap-3 align-items-center ${czyLicytacja ? 'border-warning' : ''}`;
-      karta.dataset.typ = dzialka.typ;
-      karta.dataset.status = dzialka.status;
-      karta.innerHTML = `
-        <div class="map-miniature ${kolor !== 'primary' ? `bg-${kolor}-subtle border-${kolor}` : 'bg-primary-subtle border-primary'}"></div>
-        <div class="flex-grow-1 text-start">
-          <div class="fw-bold text-dark">Działka nr ${dzialka.numer}</div>
-          <small class="text-muted d-block mb-1">ID: ${dzialka.id} • Pow: ${dzialka.pow}</small>
-          <span class="badge ${czyLicytacja ? 'text-bg-warning text-dark' : `bg-${kolor}`} rounded-pill small fw-bold">
-            ${czyLicytacja ? 'Licytacja' : dzialka.typ}
-          </span>
-        </div>
-      `;
-      karta.addEventListener('click', () => otworzSzczegoly(dzialka));
-      plotListContainer.appendChild(karta);
+        // --- RENDEROWANIE KARTY (SIDEBAR) ---
+        const karta = document.createElement('button');
+        karta.type = 'button';
+        karta.className = `plot-list-card d-flex gap-3 align-items-center ${czyLicytacja ? 'border-warning' : ''}`;
+        karta.dataset.typ = dzialka.typ;
+        karta.dataset.status = dzialka.status;
+        karta.innerHTML = `
+            <div class="map-miniature ${kolor !== 'primary' ? `bg-${kolor}-subtle border-${kolor}` : 'bg-primary-subtle border-primary'}"></div>
+            <div class="flex-grow-1 text-start">
+                <div class="fw-bold text-dark">Działka nr ${dzialka.numer}</div>
+                <small class="text-muted d-block mb-1">ID: ${dzialka.id} • Pow: ${dzialka.pow}</small>
+                <span class="badge ${czyLicytacja ? 'text-bg-warning text-dark' : `bg-${kolor}`} rounded-pill small fw-bold">
+                    ${czyLicytacja ? 'Licytacja' : dzialka.typ}
+                </span>
+            </div>
+        `;
+        karta.addEventListener('click', () => otworzSzczegoly(dzialka));
+        plotListContainer.appendChild(karta);
+
+        // --- RENDEROWANIE WIERSZA (TABELA URZĘDNIKA) ---
+        if (adminTableBody) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="fw-bold">#${dzialka.id}</td>
+                <td><code class="small text-muted">POLYGON</code></td>
+                <td>${dzialka.pow}</td>
+                <td><span class="badge bg-${kolor}">${dzialka.typ}</span></td>
+                <td>
+                    <span class="badge ${czyLicytacja ? 'bg-warning text-dark' : 'bg-success'}">
+                        ${dzialka.status}
+                    </span>
+                </td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-danger" onclick="usunDzialke(${dzialka.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            adminTableBody.appendChild(tr);
+        }
     });
 
     uruchomFiltrowanie();
-  }
+}
 
   // POŁĄCZENIE Z BACKENDEM: Pobieranie danych za pomocą obiektu API Oliwii
   async function pobierzDaneZSerwera() {
@@ -202,4 +214,70 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   pobierzDaneZSerwera();
+
+  // --- OBSŁUGA DODAWANIA NOWEJ DZIAŁKI (PANEL URZĘDNIKA) ---
+const formNowaDzialka = document.getElementById('formNowaDzialka');
+
+if (formNowaDzialka) {
+    formNowaDzialka.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // 1. Pobranie danych z pól formularza
+        const coordsRaw = document.getElementById('plotCoords').value;
+        const powierzchnia = document.getElementById('plotArea').value.replace(/[^0-9.]/g, '');
+        const przeznaczenie = document.getElementById('plotType').value;
+        const status = "Dostępna"; 
+        const cena = 0; // Domyślna cena, dopóki nie dodacie pola w formularzu [cite: 59]
+
+        // 2. Parsowanie współrzędnych do formatu GeoJSON [cite: 59]
+        let geometria;
+        try {
+            const parsedCoords = JSON.parse(coordsRaw);
+            geometria = {
+                type: "Polygon",
+                coordinates: [parsedCoords] 
+            };
+        } catch (err) {
+            alert("Błąd formatu współrzędnych! Wprowadź dane jako tablicę, np: [[19.9, 50.0], [19.91, 50.0], [19.9, 50.0]]");
+            return;
+        }
+
+        // 3. Przygotowanie obiektu do wysyłki [cite: 59]
+        const nowaDzialka = {
+            geometriaGeoJSON: geometria,
+            powierzchnia: parseFloat(powierzchnia),
+            status: status,
+            przeznaczenie: przeznaczenie,
+            cena: cena
+        };
+
+        // --- POPRAWIONA SEKCJA W mapa.js ---
+        try {
+          // 4. Wysłanie żądania POST za pomocą modułu API Oliwii
+          const wynik = await API.request('/dzialki', 'POST', nowaDzialka);
+
+          // 5. Sukces: Moduł API.request wyrzuca Error automatycznie, jeśli status nie jest 2xx.
+          // Jeśli kod doszedł tutaj, oznacza to sukces.
+          alert('✅ ' + (wynik.wiadomosc || 'Nieruchomość została pomyślnie dodana!'));
+          formNowaDzialka.reset();
+    
+          // Zamknięcie collapse'a formularza (Bootstrap)
+          const collapseEl = document.getElementById('collapseFormDzialka');
+          const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl);
+          bsCollapse.hide();
+
+          // 6. KLUCZOWE: Odświeżenie mapy i listy bez przeładowania strony 
+          if (leafletGeoJsonLayer) {
+            map.removeLayer(leafletGeoJsonLayer);
+          }
+    
+          // Ponowne pobranie danych z bazy (wyświetli już nową działkę) [cite: 29]
+          pobierzDaneZSerwera(); 
+
+        } catch (error) {
+          console.error("Błąd podczas dodawania działki:", error);
+          alert("❌ Nie udało się dodać działki: " + error.message);
+        }
+    });
+  }
 });
