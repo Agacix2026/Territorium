@@ -61,4 +61,28 @@ router.post('/', async (req, res) => {
     }
 });
 
+// ENDPOINT: USUWANIE DZIAŁKI (DELETE /api/dzialki/:id)
+router.delete('/:id', async (req, res) => {
+    try {
+        const idDzialki = req.params.id;
+
+        // Zapytanie SQL usuwające rekord o podanym ID
+        const query = 'DELETE FROM Nieruchomosci WHERE ID = $1 RETURNING id;';
+        const result = await pool.query(query, [idDzialki]);
+
+        // Sprawdzenie, czy działka faktycznie istniała i została usunięta
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Nie znaleziono działki o podanym ID.' });
+        }
+
+        res.status(200).json({ 
+            wiadomosc: `Działka #${idDzialki} została pomyślnie usunięta z systemu.` 
+        });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: 'Wystąpił błąd serwera podczas usuwania działki.' });
+    }
+});
+
 module.exports = router;

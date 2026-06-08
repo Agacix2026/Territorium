@@ -386,35 +386,57 @@
                         <div class="p-4">
                             <h5 class="h6 fw-bold text-muted mb-3 uppercase small">Wprowadź nowe parametry nieruchomości gruntowej</h5>
                             <form class="needs-validation" novalidate id="formNowaDzialka">
-                                <div class="row g-3">
-                                    <div class="col-md-2"><label for="plotId" class="form-label small fw-bold">ID</label><input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotId" required></div>
-                                    <div class="col-md-3"><label for="plotCoords" class="form-label small fw-bold">Geometria (Współrzędne)</label><input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotCoords" placeholder="np. [50.065, 19.945]" required></div>
-                                    <div class="col-md-2"><label for="plotArea" class="form-label small fw-bold">Powierzchnia</label><input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotArea" placeholder="np. 1 500 m²" required></div>
-                                    <div class="col-md-3">
-                                        <label for="plotType" class="form-label small fw-bold">Przeznaczenie</label>
-                                        <select class="form-select form-select-sm border-0 shadow-sm" id="plotType" required>
-                                            <option selected disabled value="">Wybierz...</option>
-                                            <option value="Mieszkalne">Mieszkalne</option>
-                                            <option value="Usługowe">Usługowe</option>
-                                            <option value="Przemysłowe">Przemysłowe</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-save me-1"></i>Zapisz działkę</button></div>
-                                </div>
-                            </form>
+    <div class="row g-3">
+        <div class="col-md-1">
+            <label for="plotId" class="form-label small fw-bold">ID</label>
+            <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotId" required>
+        </div>
+        <div class="col-md-3">
+            <label for="plotCoords" class="form-label small fw-bold">Geometria (Współrzędne)</label>
+            <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotCoords" placeholder="np. [50.065, 19.945]" required>
+        </div>
+        <div class="col-md-2">
+            <label for="plotArea" class="form-label small fw-bold">Powierzchnia</label>
+            <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotArea" placeholder="np. 1 500 m²" required>
+        </div>
+        <div class="col-md-2">
+            <label for="plotPrice" class="form-label small fw-bold">Cena (PLN)</label>
+            <input type="number" step="0.01" class="form-control form-control-sm border-0 shadow-sm" id="plotPrice" placeholder="np. 250000" required>
+        </div>
+        <div class="col-md-2">
+            <label for="plotType" class="form-label small fw-bold">Przeznaczenie</label>
+            <select class="form-select form-select-sm border-0 shadow-sm" id="plotType" required>
+                <option selected disabled value="">Wybierz...</option>
+                <option value="Mieszkalne">Mieszkalne</option>
+                <option value="Usługowe">Usługowe</option>
+                <option value="Przemysłowe">Przemysłowe</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-save me-1"></i>Zapisz działkę</button>
+        </div>
+    </div>
+</form>
                         </div>
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-gov align-middle mb-0">
-                            <thead>
-                                <tr><th>ID</th><th>Geometria</th><th>Powierzchnia</th><th>Przeznaczenie</th><th>Status</th><th class="text-end">Zarządzanie</th></tr>
-                            </thead>
-                            <tbody id="dzialki-table-body">
-                                
-                            </tbody>
-                        </table>
-                    </div>
+    <table class="table table-gov align-middle mb-0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Geometria</th>
+                <th>Powierzchnia</th>
+                <th>Przeznaczenie</th>
+                <th>Cena</th> <th>Status</th>
+                <th class="text-end">Zarządzanie</th>
+            </tr>
+        </thead>
+        <tbody id="dzialki-table-body">
+            
+        </tbody>
+    </table>
+</div>
                 </div>
             </section>
 

@@ -99,6 +99,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const kolor = pobierzKolor(dzialka.typ);
         const czyLicytacja = dzialka.status === 'Aktywna licytacja';
 
+        // Znajdujemy surowy obiekt z API, aby wyciągnąć prawdziwą cenę (nie sformatowany tekst)
+        const oryginalnaDzialka = daneZ_API.find(d => d.id === dzialka.id);
+        const surowaCena = oryginalnaDzialka ? oryginalnaDzialka.cena : 0;
+        
+        // Formatowanie ceny na potrzeby wyświetlania w tabeli urzędnika
+        const cenaWyswietlana = surowaCena && parseFloat(surowaCena) > 0
+            ? `${parseFloat(surowaCena).toLocaleString('pl-PL')} PLN`
+            : '0 PLN';
+
         // --- RENDEROWANIE KARTY (SIDEBAR) ---
         const karta = document.createElement('button');
         karta.type = 'button';
@@ -115,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </span>
             </div>
         `;
-        karta.addEventListener('click', () => otworzSzczegoly(dzialka));
+        karta.addEventListener('click', () => otworzSzczegoly({ ...dzialka, cena: cenaWyswietlana }));
         plotListContainer.appendChild(karta);
 
         // --- RENDEROWANIE WIERSZA (TABELA URZĘDNIKA) ---
@@ -126,6 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><code class="small text-muted">POLYGON</code></td>
                 <td>${dzialka.pow}</td>
                 <td><span class="badge bg-${kolor}">${dzialka.typ}</span></td>
+                <td class="fw-bold text-dark">${cenaWyswietlana}</td>
                 <td>
                     <span class="badge ${czyLicytacja ? 'bg-warning text-dark' : 'bg-success'}">
                         ${dzialka.status}
@@ -215,69 +225,108 @@ document.addEventListener('DOMContentLoaded', () => {
 
   pobierzDaneZSerwera();
 
-  // --- OBSŁUGA DODAWANIA NOWEJ DZIAŁKI (PANEL URZĘDNIKA) ---
+// --- OBSŁUGA DODAWANIA NOWEJ DZIAŁKI (PANEL URZĘDNIKA) ---
 const formNowaDzialka = document.getElementById('formNowaDzialka');
 
 if (formNowaDzialka) {
+    console.log("✅ ETAP 1: Skrypt znalazł formularz w HTML!");
+
     formNowaDzialka.addEventListener('submit', async (e) => {
-        e.preventDefault();
+        // Blokujemy standardowe przeładowanie strony
+        e.preventDefault(); 
+        
+        console.log("✅ ETAP 2: Kliknięto przycisk Zapisz!");
 
-        // 1. Pobranie danych z pól formularza
-        const coordsRaw = document.getElementById('plotCoords').value;
-        const powierzchnia = document.getElementById('plotArea').value.replace(/[^0-9.]/g, '');
-        const przeznaczenie = document.getElementById('plotType').value;
-        const status = "Dostępna"; 
-        const cena = 0; // Domyślna cena, dopóki nie dodacie pola w formularzu [cite: 59]
-
-        // 2. Parsowanie współrzędnych do formatu GeoJSON [cite: 59]
-        let geometria;
         try {
-            const parsedCoords = JSON.parse(coordsRaw);
-            geometria = {
-                type: "Polygon",
-                coordinates: [parsedCoords] 
+            // 1. Sprawdzamy, czy wszystkie elementy istnieją w HTML, zanim pobierzemy wartości
+            const coordsEl = document.getElementById('plotCoords');
+            const areaEl = document.getElementById('plotArea');
+            const typeEl = document.getElementById('plotType');
+            const priceEl = document.getElementById('plotPrice');
+
+            if (!coordsEl || !areaEl || !typeEl || !priceEl) {
+                console.error("❌ BŁĄD: Brakuje jakiegoś pola w HTML (złe ID)!");
+                alert("Błąd: Nie znaleziono wszystkich pól formularza. Sprawdź konsolę.");
+                return; // Zatrzymujemy wysyłkę
+            }
+
+            // 2. Pobieranie i parsowanie danych
+            const coordsRaw = coordsEl.value;
+            const powierzchnia = areaEl.value.replace(/[^0-9.]/g, '');
+            const przeznaczenie = typeEl.value;
+            const cenaRaw = priceEl.value;
+            
+            const cena = cenaRaw ? parseFloat(cenaRaw) : 0; 
+            const status = "Dostępna";
+
+            let geometria;
+            try {
+                const parsedCoords = JSON.parse(coordsRaw);
+                geometria = { type: "Polygon", coordinates: [parsedCoords] };
+            } catch (err) {
+                alert("Błąd formatu współrzędnych! Wprowadź np: [[19.9, 50.0], [19.91, 50.0], [19.9, 50.0]]");
+                return;
+            }
+
+            // 3. Obiekt do wysłania
+            const nowaDzialka = {
+                geometriaGeoJSON: geometria,
+                powierzchnia: parseFloat(powierzchnia),
+                status: status,
+                przeznaczenie: przeznaczenie,
+                cena: cena
             };
-        } catch (err) {
-            alert("Błąd formatu współrzędnych! Wprowadź dane jako tablicę, np: [[19.9, 50.0], [19.91, 50.0], [19.9, 50.0]]");
-            return;
-        }
 
-        // 3. Przygotowanie obiektu do wysyłki [cite: 59]
-        const nowaDzialka = {
-            geometriaGeoJSON: geometria,
-            powierzchnia: parseFloat(powierzchnia),
-            status: status,
-            przeznaczenie: przeznaczenie,
-            cena: cena
-        };
+            console.log("✅ ETAP 3: Obiekt gotowy do wysłania:", nowaDzialka);
 
-        // --- POPRAWIONA SEKCJA W mapa.js ---
-        try {
-          // 4. Wysłanie żądania POST za pomocą modułu API Oliwii
-          const wynik = await API.request('/dzialki', 'POST', nowaDzialka);
+            // 4. Wysłanie żądania do API
+            const wynik = await API.request('/dzialki', 'POST', nowaDzialka);
+            console.log("✅ ETAP 4: Sukces API!", wynik);
 
-          // 5. Sukces: Moduł API.request wyrzuca Error automatycznie, jeśli status nie jest 2xx.
-          // Jeśli kod doszedł tutaj, oznacza to sukces.
-          alert('✅ ' + (wynik.wiadomosc || 'Nieruchomość została pomyślnie dodana!'));
-          formNowaDzialka.reset();
-    
-          // Zamknięcie collapse'a formularza (Bootstrap)
-          const collapseEl = document.getElementById('collapseFormDzialka');
-          const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl);
-          bsCollapse.hide();
+            alert('✅ ' + (wynik.wiadomosc || 'Nieruchomość dodana!'));
+            formNowaDzialka.reset();
+      
+            // Odświeżenie danych i mapy
+            const collapseEl = document.getElementById('collapseFormDzialka');
+            const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl);
+            bsCollapse.hide();
 
-          // 6. KLUCZOWE: Odświeżenie mapy i listy bez przeładowania strony 
-          if (leafletGeoJsonLayer) {
-            map.removeLayer(leafletGeoJsonLayer);
-          }
-    
-          // Ponowne pobranie danych z bazy (wyświetli już nową działkę) [cite: 29]
-          pobierzDaneZSerwera(); 
+            if (leafletGeoJsonLayer) map.removeLayer(leafletGeoJsonLayer);
+            pobierzDaneZSerwera(); 
 
         } catch (error) {
-          console.error("Błąd podczas dodawania działki:", error);
-          alert("❌ Nie udało się dodać działki: " + error.message);
+            console.error("❌ ETAP 4 BŁĄD: Błąd podczas dodawania działki:", error);
+            alert("Nie udało się dodać działki: " + error.message);
         }
     });
-  }
+} else {
+    console.warn("⚠️ UWAGA: Skrypt nie widzi formularza 'formNowaDzialka'.");
+}
 });
+
+// --- GLOBALNA FUNKCJA DO USUWANIA DZIAŁKI Z TABELI URZĘDNIKA ---
+window.usunDzialke = async function(id) {
+    // 1. Pytamy użytkownika o potwierdzenie (zabezpieczenie przed przypadkowym kliknięciem)
+    const potwierdzenie = confirm(`Czy na pewno chcesz trwale usunąć działkę #${id}? Tej operacji nie można cofnąć.`);
+    
+    if (!potwierdzenie) return; // Jeśli urzędnik kliknie "Anuluj", przerywamy
+
+    try {
+        // 2. Wysłanie żądania DELETE do backendu
+        const wynik = await API.request(`/dzialki/${id}`, 'DELETE');
+        
+        alert('✅ ' + (wynik.wiadomosc || 'Działka usunięta!'));
+
+        // 3. Po pomyślnym usunięciu odświeżamy listę i mapę
+        if (typeof pobierzDaneZSerwera === "function") {
+            pobierzDaneZSerwera();
+        } else {
+            // W razie problemów ze ścieżkami, po prostu przeładowujemy stronę
+            window.location.reload();
+        }
+
+    } catch (error) {
+        console.error("Błąd usuwania działki:", error);
+        alert("❌ Nie udało się usunąć działki: " + error.message);
+    }
+};
