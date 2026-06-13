@@ -81,3 +81,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// --- FUNKCJA DLA URZĘDNIKA: Zatwierdzanie Wadium i Zmiana Roli ---
+window.zatwierdzWadium = async function(idUzytkownika, wierszId) {
+    const potwierdzenie = confirm('Czy na pewno chcesz zatwierdzić wpłatę i nadać temu użytkownikowi prawa Licytanta?');
+    if (!potwierdzenie) return;
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/uzytkownicy/${idUzytkownika}/rola`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+                // Jeśli masz już wdrożone JWT, tutaj docelowo dodasz:
+                // 'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ nowaRola: 'Licytant' })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('✅ Sukces! Obywatel otrzymał status Licytanta i może brać udział w aukcji.');
+            
+            // Ukrycie wiersza w tabeli po udanej akceptacji
+            const wiersz = document.getElementById(wierszId);
+            if (wiersz) {
+                wiersz.style.transition = "opacity 0.5s";
+                wiersz.style.opacity = "0";
+                setTimeout(() => wiersz.remove(), 500);
+            }
+        } else {
+            alert(`❌ Odmowa serwera: ${result.error || 'Błąd zmiany roli'}`);
+        }
+    } catch (error) {
+        console.error('Błąd połączenia z API:', error);
+        alert('Wystąpił błąd sieciowy. Sprawdź, czy serwer backendu działa.');
+    }
+};
+
+window.odrzucWadium = function(wierszId) {
+    const potwierdzenie = confirm('Czy odrzucić wniosek o licytację?');
+    if (potwierdzenie) {
+        const wiersz = document.getElementById(wierszId);
+        if (wiersz) wiersz.remove();
+    }
+};

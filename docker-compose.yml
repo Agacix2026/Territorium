@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: secretpassword
       POSTGRES_DB: territorium_db
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      - pg-data-v3:/var/lib/postgresql/data
       # DODAJCIE TĘ LINIJKĘ (uruchamia SQL przy starcie):
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     # Port 5432 jest ukryty przed światem zewnętrznym, dostępny tylko w sieci Dockera
@@ -18,7 +18,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "3000:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 8303)
+      - "3100:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 8303)
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -42,4 +42,4 @@ services:
       - backend
 
 volumes:
-  pg-data:
+  pg-data-v3:

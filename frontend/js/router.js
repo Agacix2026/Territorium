@@ -41,6 +41,13 @@ function handleRouting() {
     const activeView = document.getElementById(viewName);
     if (activeView) {
         activeView.classList.remove('d-none');
+        
+        // --- KLUCZOWA NAPRAWA MAPY ---
+        if (viewName === 'mapa' && typeof window.map !== 'undefined') {
+            setTimeout(() => {
+                window.map.invalidateSize();
+            }, 100); // Małe opóźnienie, by przeglądarka zdążyła zdjąć d-none
+        }
     } else {
         const defaultView = document.getElementById('mapa');
         if (defaultView) defaultView.classList.remove('d-none');

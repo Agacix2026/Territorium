@@ -19,19 +19,21 @@
     <link rel="stylesheet" href="css/responsive.css" />
     
     <style>
-        /* Dedykowane style tabel i kart GovTech z panelu urzędnika */
         .gov-card-header { border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
         .table-gov { margin: 0; width: 100%; }
-        .table-gov thead th { background-color: #f9fafb; color: #4b5563; text-transform: uppercase; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; border-bottom: 1px solid #e5e7eb; padding: 1rem; }
+        .table-gov thead th { background-color: #f9fafb; color: #4b5563; text-transform: uppercase; font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid #e5e7eb; padding: 1rem; }
         .table-gov tbody tr { transition: background-color 0.15s; border-bottom: 1px solid #f3f4f6; }
         .table-gov tbody tr:hover { background-color: #f3f4f6; }
         .table-gov tbody td { padding: 1rem; vertical-align: middle; color: #1f2937; }
         .uppercase { text-transform: uppercase; }
-        
-        /* Dedykowane style modułu aukcji */
         .step-section { margin-top: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #0056b3; }
         .hidden { display: none !important; }
         .input-error { border: 2px solid #dc3545; }
+        
+        /* Dodatkowy styl dla kart na liście działek obok mapy */
+        .plot-list-card { cursor: pointer; transition: all 0.2s; }
+        .plot-list-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .map-miniature { width: 48px; height: 48px; }
     </style>
 </head>
 <body class="bg-light min-vh-100 d-flex flex-column">
@@ -40,25 +42,19 @@
         <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #0f766e, #115e59); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <div class="container-fluid px-4">
                 <a class="navbar-brand fw-bold" href="#mapa">Territorium GovTech</a>
-
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Przełącz nawigację">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-
                 <div class="collapse navbar-collapse" id="mainNav">
                     <ul class="navbar-nav ms-auto mb-2 mb-lg-0 gap-2">
                         <li class="nav-item"><a href="#mapa" class="nav-link text-white fw-medium">Mapa GIS</a></li>
-                        
                         <li class="nav-item" id="navItemLogowanie"><a href="#logowanie" class="nav-link text-white fw-medium">Logowanie</a></li>
-                        
                         <li class="nav-item"><a href="#umowy" class="nav-link text-white fw-medium">Umowy</a></li>
                         <li class="nav-item"><a href="#aukcje" class="nav-link text-white fw-medium">Aukcje</a></li>
                         <li class="nav-item"><a href="#dokumenty" class="nav-link text-white fw-medium">Dokumenty</a></li>
-                        
-                        <li class="nav-item d-none"><a href="#panel-urzednika" class="nav-link text-white fw-medium">Panel Urzędnika</a></li>
-                        
+                        <li class="nav-item d-none" id="navItemAdmin"><a href="#panel-urzednika" class="nav-link text-warning fw-bold">Panel Urzędnika</a></li>
                         <li class="nav-item d-none" id="navItemWyloguj">
-                            <a href="#" id="wylogujBtn" class="nav-link text-warning fw-bold">
+                            <a href="#" id="wylogujBtn" class="nav-link text-white fw-bold">
                                 <i class="bi bi-box-arrow-right me-1"></i>Wyloguj <span id="wylogujUser"></span>
                             </a>
                         </li>
@@ -93,7 +89,6 @@
                                         <label class="form-check-label" for="checkObywatel">Jestem obywatelem RP.</label>
                                     </div>
                                 </div>
-                                
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-outline-primary w-50" type="button" id="btnRejestruj">Utwórz konto</button>
                                     <button class="btn btn-primary w-50" type="submit" id="btnLoguj">Zaloguj</button>
@@ -175,7 +170,7 @@
                         </div>
                         <div class="modal-footer bg-light p-3" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
                             <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Zamknij</button>
-                            <a href="#aukcje" class="btn btn-primary px-4 d-none" id="modalActionBtn"><i class="bi bi-hammer me-2"></i>Przejdź do licytacji</a>
+                            <a href="#aukcje" class="btn btn-primary px-4 d-none" id="modalActionBtn" data-bs-dismiss="modal"><i class="bi bi-hammer me-2"></i>Przejdź do licytacji</a>
                         </div>
                     </div>
                 </div>
@@ -194,21 +189,7 @@
         <div id="umowy" class="route-view d-none">
             <h2 class="mb-4">Zarządzanie Umowami Dzierżawy</h2>
             <div class="card shadow-sm border-0 p-4 bg-white" style="border-radius: 12px; border: 1px solid #e5e7eb;">
-                <form id="formularzUmowy" class="needs-validation" novalidate>
-                    <div class="mb-3">
-                        <label class="form-label">Data Rozpoczęcia</label>
-                        <input type="date" id="dataStart" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Data Zakończenia</label>
-                        <input type="date" id="dataKoniec" class="form-control" required>
-                        <div class="invalid-feedback" id="bladDaty">Wybierz poprawną datę.</div>
-                    </div>
-                    <button type="submit" class="btn btn-primary" id="btnZapiszUmowe">
-                        <span class="spinner-border spinner-border-sm d-none" id="spinnerLadowania" role="status" aria-hidden="true"></span>
-                        Zapisz Umowę
-                    </button>
-                </form>
+                <p class="text-muted">Aby dodać umowę, przejdź do Panelu Urzędnika (wymagane konto z rolą Admin).</p>
             </div>
         </div>
 
@@ -219,16 +200,7 @@
             </div>
 
             <div class="gov-card bg-white" style="border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.5rem;">
-                <h4 class="mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg me-2" aria-hidden="true">
-                        <path d="m14 13-7.5 7.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0-.83-.83-.83-2.17 0-3L11 10" />
-                        <path d="m16 16 3.5 3.5c.83.83 2.17.83 3 0 0 0 0 0 0 0-.83-.83-.83-2.17 0-3L19 13" />
-                        <path d="m15 6 5 5" />
-                        <path d="m7.5 13.5 5-5" />
-                        <path d="m16 2.5 5.5 5.5-3.5 3.5-5.5-5.5Z" />
-                    </svg>
-                    Karta Przedmiotu
-                </h4>
+                <h4 class="mb-3"><i class="bi bi-tag me-2"></i>Karta Przedmiotu</h4>
                 <p><strong>Obiekt:</strong> <span id="auction-title" class="text-primary">Działka budowlana - ul. Kwiatowa</span></p>
                 <p><strong>Aktualna cena:</strong> <span id="current-price-display" class="fw-bold fs-5">0,00 PLN</span></p>
                 <p><strong>Wymagane wadium:</strong> <span id="wadium-display">0,00 PLN</span></p>
@@ -264,14 +236,12 @@
         <div id="dokumenty" class="route-view d-none">
             <div class="gov-card bg-white" style="border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.5rem;">
                 <h2 class="mb-3">Dokumentacja Techniczna</h2>
-                
                 <div class="table-responsive">
                     <table class="table align-middle">
                         <thead class="table-dark">
                             <tr><th>ID</th><th>Nazwa i Powiązanie</th><th>Typ</th><th>Akcja</th></tr>
                         </thead>
-                        <tbody id="documentsTableBody">
-                            </tbody>
+                        <tbody id="documentsTableBody"></tbody>
                     </table>
                 </div>
                 <div class="text-center mt-3">
@@ -301,73 +271,17 @@
                                     <th scope="col" class="text-end">Akcje Urzędnika</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td><div class="fw-bold text-dark">Jan Nowak</div><div class="text-muted small">j.nowak@example.com</div></td>
+                            <tbody id="tabela-wadium-body">
+                                <tr id="wadium-row-1">
+                                    <td><div class="fw-bold text-dark">Jan Nowak</div><div class="text-muted small">licytant@test.pl</div></td>
                                     <td>Działka N/102</td>
                                     <td><span class="badge bg-warning bg-opacity-25 text-dark border border-warning border-opacity-50"><i class="bi bi-hourglass-split me-1"></i>Oczekuje</span></td>
                                     <td class="text-end">
                                         <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-sm btn-outline-success" title="Zatwierdź wadium"><i class="bi bi-check-lg"></i></button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" title="Odrzuć wniosek"><i class="bi bi-x-lg"></i></button>
+                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="zatwierdzWadium(1, 'wadium-row-1')" title="Zatwierdź wadium"><i class="bi bi-check-lg"></i></button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="odrzucWadium('wadium-row-1')" title="Odrzuć wniosek"><i class="bi bi-x-lg"></i></button>
                                         </div>
                                     </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <section class="mb-4">
-                <div class="gov-card p-0 overflow-hidden border-0 shadow-sm bg-white" style="border-radius: 12px; border: 1px solid #e5e7eb;">
-                    <div class="gov-card-header px-4 pt-4 pb-3 m-0 border-bottom d-flex justify-content-between align-items-center">
-                        <h2 class="h6 text-dark fw-bold mb-0"><i class="bi bi-file-earmark-text me-2 text-primary"></i>Rejestr Umów Dzierżawy (Urzędnik)</h2>
-                        <button class="btn btn-dark btn-sm shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseFormUmowaPanel"><i class="bi bi-plus-lg me-1"></i>Generuj umowę</button>
-                    </div>
-
-                    <div class="collapse bg-light border-bottom" id="collapseFormUmowaPanel">
-                        <div class="p-4">
-                            <h5 class="h6 fw-bold text-muted mb-3 uppercase small">Kreator nowej umowy dzierżawy</h5>
-                            <form id="formularzUmowyPanel" class="needs-validation" novalidate>
-                                <div class="row g-3">
-                                    <div class="col-md-3"><label class="form-label small fw-bold">ID Najemcy</label><input type="text" class="form-control form-control-sm border-0 shadow-sm" required></div>
-                                    <div class="col-md-3"><label class="form-label small fw-bold">ID Działki</label><input type="text" class="form-control form-control-sm border-0 shadow-sm" required></div>
-                                    <div class="col-md-2">
-                                        <label for="dataStartPanel" class="form-label small fw-bold">Data rozpoczęcia</label>
-                                        <input type="date" class="form-control form-control-sm border-0 shadow-sm" id="dataStartPanel" required>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="dataKoniecPanel" class="form-label small fw-bold">Data zakończenia</label>
-                                        <input type="date" class="form-control form-control-sm border-0 shadow-sm" id="dataKoniecPanel" required>
-                                        <div id="bladDatyPanel" class="invalid-feedback fw-bold" role="alert" aria-live="assertive"></div>
-                                    </div>
-                                    <div class="col-md-2 d-flex align-items-end"><button type="submit" id="btnZapiszUmowePanel" class="btn btn-success btn-sm w-100"><i class="bi bi-file-check me-1"></i>Utwórz</button></div>
-                                </div>
-                                <div id="spinnerLadowaniaPanel" class="mt-2 text-primary d-none small"><span class="spinner-border spinner-border-sm me-2" role="status"></span>Trwa generowanie dokumentu...</div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <div id="error-message-panel" class="alert alert-danger d-none m-4 mt-0" role="alert">Nie udało się pobrać danych umów z serwera.</div>
-                    <div class="table-responsive">
-                        <table class="table table-gov align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th scope="col">ID Umowy</th>
-                                    <th scope="col">ID Nieruchomości</th>
-                                    <th scope="col">ID Najemcy</th>
-                                    <th scope="col">Okres Trwania</th>
-                                    <th scope="col">Czynsz</th>
-                                </tr>
-                            </thead>
-                            <tbody id="umowy-table-body-panel">
-                                <tr class="placeholder-glow" id="loading-skeleton-panel">
-                                    <td><span class="placeholder col-6 bg-secondary"></span></td>
-                                    <td><span class="placeholder col-4 bg-secondary"></span></td>
-                                    <td><span class="placeholder col-8 bg-secondary"></span></td>
-                                    <td><span class="placeholder col-7 bg-secondary"></span></td>
-                                    <td><span class="placeholder col-5 bg-secondary"></span></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -386,57 +300,45 @@
                         <div class="p-4">
                             <h5 class="h6 fw-bold text-muted mb-3 uppercase small">Wprowadź nowe parametry nieruchomości gruntowej</h5>
                             <form class="needs-validation" novalidate id="formNowaDzialka">
-    <div class="row g-3">
-        <div class="col-md-1">
-            <label for="plotId" class="form-label small fw-bold">ID</label>
-            <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotId" required>
-        </div>
-        <div class="col-md-3">
-            <label for="plotCoords" class="form-label small fw-bold">Geometria (Współrzędne)</label>
-            <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotCoords" placeholder="np. [50.065, 19.945]" required>
-        </div>
-        <div class="col-md-2">
-            <label for="plotArea" class="form-label small fw-bold">Powierzchnia</label>
-            <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotArea" placeholder="np. 1 500 m²" required>
-        </div>
-        <div class="col-md-2">
-            <label for="plotPrice" class="form-label small fw-bold">Cena (PLN)</label>
-            <input type="number" step="0.01" class="form-control form-control-sm border-0 shadow-sm" id="plotPrice" placeholder="np. 250000" required>
-        </div>
-        <div class="col-md-2">
-            <label for="plotType" class="form-label small fw-bold">Przeznaczenie</label>
-            <select class="form-select form-select-sm border-0 shadow-sm" id="plotType" required>
-                <option selected disabled value="">Wybierz...</option>
-                <option value="Mieszkalne">Mieszkalne</option>
-                <option value="Usługowe">Usługowe</option>
-                <option value="Przemysłowe">Przemysłowe</option>
-            </select>
-        </div>
-        <div class="col-md-2 d-flex align-items-end">
-            <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-save me-1"></i>Zapisz działkę</button>
-        </div>
-    </div>
-</form>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label for="plotCoords" class="form-label small fw-bold">Współrzędne (Format tablicy)</label>
+                                        <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotCoords" placeholder="np. [[19.9, 50.0], [19.91, 50.0], ...]" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="plotArea" class="form-label small fw-bold">Powierzchnia</label>
+                                        <input type="text" class="form-control form-control-sm border-0 shadow-sm" id="plotArea" placeholder="np. 1500 m²" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="plotPrice" class="form-label small fw-bold">Cena (PLN)</label>
+                                        <input type="number" step="0.01" class="form-control form-control-sm border-0 shadow-sm" id="plotPrice" placeholder="np. 250000" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="plotType" class="form-label small fw-bold">Przeznaczenie</label>
+                                        <select class="form-select form-select-sm border-0 shadow-sm" id="plotType" required>
+                                            <option selected disabled value="">Wybierz...</option>
+                                            <option value="Mieszkalne">Mieszkalne</option>
+                                            <option value="Usługowe">Usługowe</option>
+                                            <option value="Przemysłowe">Przemysłowe</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-save me-1"></i>Zapisz</button>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
                     </div>
 
                     <div class="table-responsive">
-    <table class="table table-gov align-middle mb-0">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Geometria</th>
-                <th>Powierzchnia</th>
-                <th>Przeznaczenie</th>
-                <th>Cena</th> <th>Status</th>
-                <th class="text-end">Zarządzanie</th>
-            </tr>
-        </thead>
-        <tbody id="dzialki-table-body">
-            
-        </tbody>
-    </table>
-</div>
+                        <table class="table table-gov align-middle mb-0">
+                            <thead>
+                                <tr><th>Numer Zasobu</th><th>Typ Geometrii</th><th>Powierzchnia</th><th>Przeznaczenie</th><th>Cena Wyw.</th><th>Status</th><th class="text-end">Akcje</th></tr>
+                            </thead>
+                            <tbody id="dzialki-table-body">
+                                </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -453,10 +355,7 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted mb-1">ID Powiązanego Obiektu</label>
-                                <select id="documentObiektIdUrzednik" class="form-select form-select-sm border-0 shadow-sm">
-                                    <option value="101">N/101 (Działka)</option>
-                                    <option value="102">N/102 (Działka)</option>
-                                </select>
+                                <input type="number" id="documentObiektIdUrzednik" class="form-control form-control-sm border-0 shadow-sm" placeholder="np. 101" required>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted mb-1">Typ struktury</label>
@@ -469,6 +368,8 @@
                                 <button type="button" id="addDocumentBtnUrzednik" class="btn btn-dark btn-sm w-100 shadow-sm"><i class="bi bi-cloud-arrow-up me-1"></i> Wyślij do bazy</button>
                             </div>
                         </form>
+                        </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -480,7 +381,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     
     <script src="js/api.js"></script>

@@ -1,45 +1,51 @@
 /**
- * Moduł Aukcji i Licytacji
- * Autor: Weronika (Mistrz Optymalizacji)
+ * Moduł Aukcji i Licytacji - Integracja API (Tydzień 6)
+ * Autor: Weronika
  */
 
-// 1. MOCKOWANE DANE (Zastępstwo backendu do czasu integracji w Tygodniu 6)
-const aktualnaAukcja = {
-    id: 101,
-    aktualnaCena: 150000.0,
-    kwotaWadium: 5000.0,
+// Identyfikatory testowe
+const TEST_AUKCJA_ID = 1;
+const TEST_LICYTANT_ID = 1; 
+
+// Lokalny stan aplikacji
+let stanAukcji = {
+    aktualnaCena: 0,
     uzytkownikZgloszony: false,
-    wadiumOplacone: false,
+    wadiumOplacone: false
 };
-  
-// 2. SELEKTORY ELEMENTÓW DOM
+
 const bidInput = document.getElementById('bid-amount');
 const bidButton = document.getElementById('btn-submit-bid');
 const bidError = document.getElementById('bid-error-msg');
 const btnRegister = document.getElementById('btn-register-auction');
 const btnPayWadium = document.getElementById('btn-pay-wadium');
-
 const stepRegister = document.getElementById('step-1');
 const stepWadium = document.getElementById('step-2');
 const stepBidForm = document.getElementById('step-3');
 
-/**
- * Inicjalizacja widoku i danych liczbowych
- */
-function initAuctionView() {
-    document.getElementById('current-price-display').textContent = `${aktualnaAukcja.aktualnaCena.toLocaleString('pl-PL')} PLN`;
-    document.getElementById('wadium-display').textContent = `${aktualnaAukcja.kwotaWadium.toLocaleString('pl-PL')} PLN`;
-    
-    updateVisualSteps();
+async function pobierzDaneAukcji() {
+    try {
+        const response = await API.request(`/aukcje/${TEST_AUKCJA_ID}`, 'GET');
+        
+        if (response.success) {
+            const dane = response.data;
+            stanAukcji.aktualnaCena = parseFloat(dane.aktualna_cena);
+            
+            document.getElementById('auction-title').textContent = dane.tytul;
+            document.getElementById('current-price-display').textContent = `${stanAukcji.aktualnaCena.toLocaleString('pl-PL')} PLN`;
+            document.getElementById('wadium-display').textContent = `${parseFloat(dane.kwota_wadium).toLocaleString('pl-PL')} PLN`;
+            
+            updateVisualSteps();
+        }
+    } catch (error) {
+        console.error('Błąd pobierania aukcji:', error);
+    }
 }
 
-/**
- * Przełączanie kroków (etapów wizualnych)
- */
 function updateVisualSteps() {
-    if (!aktualnaAukcja.uzytkownikZgloszony) {
+    if (!stanAukcji.uzytkownikZgloszony) {
         setActiveStep(stepRegister);
-    } else if (!aktualnaAukcja.wadiumOplacone) {
+    } else if (!stanAukcji.wadiumOplacone) {
         setActiveStep(stepWadium);
     } else {
         setActiveStep(stepBidForm);
@@ -48,81 +54,70 @@ function updateVisualSteps() {
 
 function setActiveStep(activeSection) {
     [stepRegister, stepWadium, stepBidForm].forEach((section) => {
-        if (section) {
-            section.classList.add('hidden');
-        }
+        if (section) section.classList.add('hidden');
     });
-    if (activeSection) {
-        activeSection.classList.remove('hidden');
-    }
+    if (activeSection) activeSection.classList.remove('hidden');
 }
 
-/**
- * Walidacja kwoty licytacji "w locie" (Na bieżąco podczas wpisywania)
- */
 function validateBidAmount() {
     const enteredAmount = parseFloat(bidInput.value);
-
-    if (isNaN(enteredAmount) || enteredAmount <= aktualnaAukcja.aktualnaCena) {
-        // Kwota za mała -> Zablokuj przycisk, pokaż błąd i dodaj czerwoną ramkę
+    if (isNaN(enteredAmount) || enteredAmount <= stanAukcji.aktualnaCena) {
         bidButton.disabled = true;
-        bidButton.setAttribute('aria-disabled', 'true');
-        bidError.textContent = `Kwota musi być większa niż aktualna cena (${aktualnaAukcja.aktualnaCena} PLN).`;
+        bidError.textContent = `Kwota musi być większa niż ${stanAukcji.aktualnaCena.toLocaleString('pl-PL')} PLN.`;
         bidInput.classList.add('input-error');
     } else {
-        // Kwota poprawna -> Odblokuj
         bidButton.disabled = false;
-        bidButton.setAttribute('aria-disabled', 'false');
         bidError.textContent = '';
         bidInput.classList.remove('input-error');
     }
 }
 
-// 3. LISTENERY ZDARZEŃ (INTERAKCJA)
-
-// Kliknięcie: Zgłoś chęć udziału
 if (btnRegister) {
     btnRegister.addEventListener('click', () => {
-        aktualnaAukcja.uzytkownikZgloszony = true;
+        stanAukcji.uzytkownikZgloszony = true;
         updateVisualSteps();
     });
 }
 
-// Kliknięcie: Opłać wadium
 if (btnPayWadium) {
     btnPayWadium.addEventListener('click', () => {
-        btnPayWadium.textContent = 'Przetwarzanie płatności...';
+        btnPayWadium.textContent = 'Przetwarzanie płatności wadium...';
         btnPayWadium.disabled = true;
-
-        // Symulacja czasu bramki płatniczej (1.2 sekundy)
         setTimeout(() => {
-            aktualnaAukcja.wadiumOplacone = true;
+            stanAukcji.wadiumOplacone = true;
             updateVisualSteps();
         }, 1200);
     });
 }
 
-// Reakcja na każdy wpisany znak w polu kwoty
 if (bidInput) {
     bidInput.addEventListener('input', validateBidAmount);
 }
 
-// Zatwierdzenie formularza (Kliknięcie "Licytuj")
 const bidForm = document.getElementById('auction-bid-form');
 if (bidForm) {
-    bidForm.addEventListener('submit', (e) => {
+    bidForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const finalAmount = parseFloat(bidInput.value);
+        if (finalAmount <= stanAukcji.aktualnaCena) return;
 
-        if (finalAmount > aktualnaAukcja.aktualnaCena) {
-            aktualnaAukcja.aktualnaCena = finalAmount;
-            initAuctionView(); // Odśwież cenę na ekranie
-            bidInput.value = '';
-            bidButton.disabled = true;
-            alert('Gratulacje! Twoja oferta została pomyślnie złożona.');
+        try {
+            const response = await API.request(`/aukcje/${TEST_AUKCJA_ID}/bid`, 'POST', {
+                id_licytanta: TEST_LICYTANT_ID,
+                kwota_oferowana: finalAmount
+            });
+
+            if (response.success) {
+                alert('Gratulacje! Twoja oferta została pomyślnie zapisana.');
+                bidInput.value = '';
+                bidButton.disabled = true;
+                await pobierzDaneAukcji();
+            }
+        } catch (error) {
+            bidError.textContent = error.message;
+            alert(`Odmowa serwera: ${error.message}`);
         }
     });
 }
 
-// Odpalenie skryptu po załadowaniu drzewa DOM
-document.addEventListener('DOMContentLoaded', initAuctionView);
+document.addEventListener('DOMContentLoaded', pobierzDaneAukcji);

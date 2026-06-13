@@ -1,5 +1,5 @@
-const API_BASE_URL = 'http://localhost:3000/api';
-//Lokalnie: http://localhost:3100/api
+const API_BASE_URL = 'http://localhost:3100/api';
+//Serwer: http://149.156.194.192:8303/api
 
 const API = {
     async request(endpoint, method = 'GET', data = null) {

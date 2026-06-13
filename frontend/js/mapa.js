@@ -1,332 +1,249 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const gisMapContainer = document.getElementById('gisMapContainer');
-  if (!gisMapContainer) return; // Zabezpieczenie dla Single Page Application (SPA)!
+// frontend/js/mapa.js - Kompletny moduł Katastru i Mapy GIS (Integracja Tydzień 6)
+// Autorzy: Beata (Logika GIS) + Agata (Stabilna integracja)
 
-  // 1. INICJALIZACJA MAPY LEAFLET (Zastępuje starą makietę opartą na divach i procentach CSS)
-  // Ustawiamy domyślny widok (np. współrzędne Krakowa [50.0614, 19.9366]). Możesz zmienić na swoją gminę.
-  const map = L.map('gisMapContainer').setView([50.0614, 19.9366], 13);
-
-  // 2. PODPIĘCIE DARMOWYCH KAFELKÓW OPENSTREETMAP (Zgodnie z wymaganiem "Should Have")
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
+// 1. Inicjalizacja mapy Leaflet wyśrodkowanej na przykładowe współrzędne
+const map = L.map('gisMapContainer').setView([50.061, 19.937], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+}).addTo(map);
 
-  let leafletGeoJsonLayer = null; // Zmienna globalna modułu do przechowywania warstwy działek
+let leafletGeoJsonLayer = null;
+const plotListContainer = document.getElementById('plotListContainer');
 
-  // Pobranie istniejących elementów UI z Waszego kodu
-  const modalElement = document.getElementById('dzialkaModal');
-  const dzialkaModal = new bootstrap.Modal(modalElement);
-  const toastElement = document.getElementById('copyToast');
-  const copyToast = new bootstrap.Toast(toastElement);
+// Pomocnicza funkcja do mapowania kolorów Bootstrapa na podstawie przeznaczenia terenu
+function pobierzKolor(typ) {
+    switch(typ) {
+        case 'Mieszkalne': return 'primary';
+        case 'Usługowe': return 'info';
+        case 'Przemysłowe': return 'dark';
+        default: return 'secondary';
+    }
+}
 
-  const plotListContainer = document.getElementById('plotListContainer');
-  const filterPills = document.querySelectorAll('.filter-pill');
-  const btnCopy = document.getElementById('btnCopyPlotNumber');
+// 2. POBIERANIE DANYCH (Zadanie Beaty: GET /api/dzialki)
+async function pobierzDaneZSerwera() {
+    try {
+        const dane = await API.request('/dzialki', 'GET');
+        renderujDzialki(dane);
+    } catch (error) {
+        console.error('Błąd połączenia z warstwą GIS:', error);
+        if (plotListContainer) {
+            plotListContainer.innerHTML = '<div class="alert alert-danger border-0 shadow-sm">Błąd pobierania warstwy katastralnej.</div>';
+        }
+    }
+}
 
-  // Funkcja pomocnicza dopasowująca klasy kolorów Bootstrapa do typów nieruchomości z bazy danych
-  function pobierzKolor(typ) {
-    if (typ === 'Mieszkalne') return 'primary';
-    if (typ === 'Usługowe') return 'info';
-    if (typ === 'Przemysłowe') return 'dark';
-    return 'secondary';
-  }
-
-  // Zachowujemy Waszą oryginalną funkcję otwierania szczegółów w modalu Bootstrapa
-  function otworzSzczegoly(daneDzialki) {
-    document.getElementById('modalIdPlot').textContent = daneDzialki.id;
-    document.getElementById('modalNumerPlot').textContent = daneDzialki.numer;
-    document.getElementById('modalAreaPlot').textContent = daneDzialki.pow;
-    document.getElementById('modalPricePlot').textContent = daneDzialki.cena;
-    document.getElementById('modalStatusPlot').textContent = daneDzialki.status;
-    document.getElementById('copyTargetNum').textContent = daneDzialki.numer;
-
-    const kolor = pobierzKolor(daneDzialki.typ);
-    const typeBadge = document.getElementById('modalTypePlot');
-    typeBadge.textContent = daneDzialki.typ;
-    typeBadge.className = `badge bg-${kolor} ${kolor === 'info' ? 'text-dark' : 'text-white'}`;
-    dzialkaModal.show();
-  }
-
-  function renderujDzialki(daneZ_API) {
-    // 1. Czyszczenie kontenerów przed renderowaniem
+// 3. RENDEROWANIE POLIGONÓW I STRUKTURY UI
+function renderujDzialki(daneZ_API) {
+    if (!plotListContainer) return;
     plotListContainer.innerHTML = '';
+    
     const adminTableBody = document.getElementById('dzialki-table-body');
     if (adminTableBody) adminTableBody.innerHTML = '';
 
-    // 2. Przygotowanie danych GeoJSON dla mapy Leaflet
+    // Transformacja obiektów z bazy PostgreSQL na standard GeoJSON dla Leafleta
     const geoJsonData = {
-        type: "FeatureCollection",
-        features: daneZ_API.map(dzialka => {
-            return {
-                type: "Feature",
-                geometry: dzialka.wspolrzedne, 
-                properties: {
-                    id: dzialka.id,
-                    numer: `D/${dzialka.id}`, 
-                    typ: dzialka.przeznaczenie,
-                    pow: `${dzialka.powierzchnia} m²`,
-                    cena: dzialka.cena ? `${parseFloat(dzialka.cena).toLocaleString('pl-PL')} PLN` : 'Do ustalenia',
-                    status: dzialka.status
-                }
-            };
-        })
+      type: "FeatureCollection",
+      features: daneZ_API.map(dzialka => ({
+          type: "Feature",
+          geometry: dzialka.wspolrzedne,
+          properties: {
+            id: dzialka.id,
+            numer: `N/${dzialka.id}`,
+            typ: dzialka.przeznaczenie,
+            pow: `${dzialka.powierzchnia} m²`,
+            cena: dzialka.cena ? `${parseFloat(dzialka.cena).toLocaleString('pl-PL')} PLN` : 'Do ustalenia',
+            status: dzialka.status || 'Dostępna'
+          }
+      }))
     };
 
-    // 3. Renderowanie na mapie
     if (leafletGeoJsonLayer) map.removeLayer(leafletGeoJsonLayer);
     
+    // Rysowanie geometrii na mapie
     leafletGeoJsonLayer = L.geoJSON(geoJsonData, {
-        style: function (feature) {
-            const kolorBootstrap = pobierzKolor(feature.properties.typ);
-            let kolorHex = "#3388ff"; 
-            if (kolorBootstrap === 'info') kolorHex = "#0dcaf0"; 
-            if (kolorBootstrap === 'dark') kolorHex = "#212529"; 
-            if (feature.properties.status === 'Aktywna licytacja') kolorHex = "#ffc107"; 
-
-            return { color: kolorHex, weight: 2, fillColor: kolorHex, fillOpacity: 0.35 };
-        },
-        onEachFeature: function (feature, layer) {
-            layer.on('click', () => otworzSzczegoly(feature.properties));
-        }
+      style: function (feature) {
+        const kolorBootstrap = pobierzKolor(feature.properties.typ);
+        let kolorHex = "#0d6efd"; 
+        if (kolorBootstrap === 'info') kolorHex = "#0dcaf0"; 
+        if (kolorBootstrap === 'dark') kolorHex = "#212529";
+        if (feature.properties.status === 'Aktywna licytacja' || feature.properties.status === 'Aktywna aukcja') kolorHex = "#ffc107"; 
+        return { color: kolorHex, weight: 2, fillColor: kolorHex, fillOpacity: 0.35 };
+      },
+      onEachFeature: function (feature, layer) {
+        // Kliknięcie w wielokąt na mapie otwiera szczegóły działki
+        layer.on('click', () => otworzSzczegoly(feature.properties));
+      }
     }).addTo(map);
 
+    // Automatyczne dopasowanie kamery do narysowanych działek
     if (geoJsonData.features.length > 0) map.fitBounds(leafletGeoJsonLayer.getBounds());
 
-    // 4. Renderowanie Sidebaru i Tabeli Urzędnika
+    // Dynamiczne budowanie elementów interfejsu użytkownika
     geoJsonData.features.forEach(feature => {
         const dzialka = feature.properties;
         const kolor = pobierzKolor(dzialka.typ);
-        const czyLicytacja = dzialka.status === 'Aktywna licytacja';
+        const czyLicytacja = (dzialka.status === 'Aktywna licytacja' || dzialka.status === 'Aktywna aukcja');
 
-        // Znajdujemy surowy obiekt z API, aby wyciągnąć prawdziwą cenę (nie sformatowany tekst)
-        const oryginalnaDzialka = daneZ_API.find(d => d.id === dzialka.id);
-        const surowaCena = oryginalnaDzialka ? oryginalnaDzialka.cena : 0;
-        
-        // Formatowanie ceny na potrzeby wyświetlania w tabeli urzędnika
-        const cenaWyswietlana = surowaCena && parseFloat(surowaCena) > 0
-            ? `${parseFloat(surowaCena).toLocaleString('pl-PL')} PLN`
-            : '0 PLN';
-
-        // --- RENDEROWANIE KARTY (SIDEBAR) ---
+        // A. Generowanie kart w panelu bocznym obok mapy (Dla Mieszkańców)
         const karta = document.createElement('button');
         karta.type = 'button';
-        karta.className = `plot-list-card d-flex gap-3 align-items-center ${czyLicytacja ? 'border-warning' : ''}`;
+        karta.className = `plot-list-card d-flex gap-3 align-items-center w-100 border-0 bg-white p-3 mb-2 shadow-sm rounded ${czyLicytacja ? 'border border-warning' : ''}`;
         karta.dataset.typ = dzialka.typ;
         karta.dataset.status = dzialka.status;
         karta.innerHTML = `
-            <div class="map-miniature ${kolor !== 'primary' ? `bg-${kolor}-subtle border-${kolor}` : 'bg-primary-subtle border-primary'}"></div>
+            <div class="map-miniature p-3 rounded ${kolor !== 'primary' ? `bg-${kolor}-subtle border border-${kolor}` : 'bg-primary-subtle border border-primary'}"></div>
             <div class="flex-grow-1 text-start">
-                <div class="fw-bold text-dark">Działka nr ${dzialka.numer}</div>
+                <div class="fw-bold text-dark">Zasób ${dzialka.numer}</div>
                 <small class="text-muted d-block mb-1">ID: ${dzialka.id} • Pow: ${dzialka.pow}</small>
                 <span class="badge ${czyLicytacja ? 'text-bg-warning text-dark' : `bg-${kolor}`} rounded-pill small fw-bold">
                     ${czyLicytacja ? 'Licytacja' : dzialka.typ}
                 </span>
             </div>
         `;
-        karta.addEventListener('click', () => otworzSzczegoly({ ...dzialka, cena: cenaWyswietlana }));
+        karta.addEventListener('click', () => otworzSzczegoly(dzialka));
         plotListContainer.appendChild(karta);
 
-        // --- RENDEROWANIE WIERSZA (TABELA URZĘDNIKA) ---
+        // B. Generowanie wierszy tabeli w Panelu Urzędnika (Dla Administratora)
         if (adminTableBody) {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="fw-bold">#${dzialka.id}</td>
+                <td class="fw-bold">${dzialka.numer}</td>
                 <td><code class="small text-muted">POLYGON</code></td>
                 <td>${dzialka.pow}</td>
                 <td><span class="badge bg-${kolor}">${dzialka.typ}</span></td>
-                <td class="fw-bold text-dark">${cenaWyswietlana}</td>
-                <td>
-                    <span class="badge ${czyLicytacja ? 'bg-warning text-dark' : 'bg-success'}">
-                        ${dzialka.status}
-                    </span>
-                </td>
+                <td class="fw-bold text-dark">${dzialka.cena}</td>
+                <td><span class="badge ${czyLicytacja ? 'bg-warning text-dark' : 'bg-success'}">${dzialka.status}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-outline-danger" onclick="usunDzialke(${dzialka.id})">
-                        <i class="bi bi-trash"></i>
+                    <button class="btn btn-sm btn-outline-danger shadow-sm border-0" onclick="usunDzialke(${dzialka.id})" title="Usuń trwale">
+                        <i class="bi bi-trash3-fill"></i>
                     </button>
                 </td>
             `;
             adminTableBody.appendChild(tr);
         }
     });
-
     uruchomFiltrowanie();
 }
 
-  // POŁĄCZENIE Z BACKENDEM: Pobieranie danych za pomocą obiektu API Oliwii
-  async function pobierzDaneZSerwera() {
-    // Pokazujemy Wasze szkielety ładowania (placeholdery) na czas trwania zapytania HTTP
-    plotListContainer.innerHTML = `
-      <div class="placeholder-glow mb-3"><div class="placeholder w-100" style="height: 85px; border-radius: 10px;"></div></div>
-      <div class="placeholder-glow mb-3"><div class="placeholder w-100" style="height: 85px; border-radius: 10px;"></div></div>
-    `;
+// 4. WYŚWIETLANIE MODALA (Karta Geodezyjna Nieruchomości)
+function otworzSzczegoly(dzialka) {
+    const modal = new bootstrap.Modal(document.getElementById('dzialkaModal'));
+    document.getElementById('modalIdPlot').textContent = dzialka.id;
+    document.getElementById('modalNumerPlot').textContent = dzialka.numer;
+    document.getElementById('modalTypePlot').textContent = dzialka.typ;
+    document.getElementById('modalTypePlot').className = `badge bg-${pobierzKolor(dzialka.typ)} text-white`;
+    document.getElementById('modalAreaPlot').textContent = dzialka.pow;
+    document.getElementById('modalPricePlot').textContent = dzialka.cena;
+    document.getElementById('modalStatusPlot').textContent = dzialka.status;
+    document.getElementById('copyTargetNum').textContent = dzialka.numer;
 
-    try {
-      // Wywołanie endpointu GET /api/dzialki skonfigurowanego w js/api.js
-      const pobraneDane = await API.request('/dzialki');
-      renderujDzialki(pobraneDane);
-    } catch (error) {
-      console.error("Błąd API GIS podczas komunikacji z bazą PostgreSQL:", error);
-      plotListContainer.innerHTML = `<div class="alert alert-danger small">Błąd połączenia z bazą danych katastru.</div>`;
+    const actionBtn = document.getElementById('modalActionBtn');
+    if (dzialka.status === 'Aktywna aukcja' || dzialka.status === 'Aktywna licytacja') {
+        actionBtn.classList.remove('d-none');
+    } else {
+        actionBtn.classList.add('d-none');
     }
-  }
-
-  // ZMODYFIKOWANE FILTROWANIE: Teraz filtruje jednocześnie sidebar oraz warstwy na mapie Leaflet
-  function uruchomFiltrowanie() {
-    filterPills.forEach(pill => {
-      pill.addEventListener('click', () => {
-        filterPills.forEach(p => p.classList.remove('active'));
-        pill.classList.add('active');
-        
-        const wybranyFiltr = pill.getAttribute('data-filter').toLowerCase().trim();
-        const karty = plotListContainer.querySelectorAll('.plot-list-card');
-
-        // 1. Ukrywanie/Pokazywanie kart w bocznym menu
-        karty.forEach(karta => {
-          const typKarty = (karta.dataset.typ || '').toLowerCase();
-          const statusKarty = (karta.dataset.status || '').toLowerCase();
-          
-          const pasuje = wybranyFiltr === 'all' || 
-                         typKarty === wybranyFiltr || 
-                         statusKarty === wybranyFiltr ||
-                         (wybranyFiltr === 'aktywna licytacja' && statusKarty === 'aktywna licytacja');
-                         
-          karta.style.display = pasuje ? 'flex' : 'none';
-        });
-
-        // 2. Dynamiczne dodawanie/usuwanie wielokątów z mapy w zależności od wybranego pilla
-        if (leafletGeoJsonLayer) {
-          leafletGeoJsonLayer.eachLayer(layer => {
-            const typWarstwy = (layer.feature.properties.typ || '').toLowerCase();
-            const statusWarstwy = (layer.feature.properties.status || '').toLowerCase();
-
-            const pasujeMapie = wybranyFiltr === 'all' || 
-                                typWarstwy === wybranyFiltr || 
-                                statusWarstwy === wybranyFiltr ||
-                                (wybranyFiltr === 'aktywna licytacja' && statusWarstwy === 'aktywna licytacja');
-
-            if (pasujeMapie) {
-              layer.addTo(map); // Przywróć na mapę
-            } else {
-              layer.remove();  // Usuń tymczasowo z widoku mapy
-            }
-          });
-        }
-      });
-    });
-  }
-
-  // Zachowujemy Waszą funkcję kopiowania do schowka
-  btnCopy.addEventListener('click', () => {
-    const nr = document.getElementById('copyTargetNum').textContent;
-    navigator.clipboard.writeText(nr).then(() => { copyToast.show(); }).catch(err => alert('Skopiuj ręcznie: ' + nr));
-  });
-
-  pobierzDaneZSerwera();
-
-// --- OBSŁUGA DODAWANIA NOWEJ DZIAŁKI (PANEL URZĘDNIKA) ---
-const formNowaDzialka = document.getElementById('formNowaDzialka');
-
-if (formNowaDzialka) {
-    console.log("✅ ETAP 1: Skrypt znalazł formularz w HTML!");
-
-    formNowaDzialka.addEventListener('submit', async (e) => {
-        // Blokujemy standardowe przeładowanie strony
-        e.preventDefault(); 
-        
-        console.log("✅ ETAP 2: Kliknięto przycisk Zapisz!");
-
-        try {
-            // 1. Sprawdzamy, czy wszystkie elementy istnieją w HTML, zanim pobierzemy wartości
-            const coordsEl = document.getElementById('plotCoords');
-            const areaEl = document.getElementById('plotArea');
-            const typeEl = document.getElementById('plotType');
-            const priceEl = document.getElementById('plotPrice');
-
-            if (!coordsEl || !areaEl || !typeEl || !priceEl) {
-                console.error("❌ BŁĄD: Brakuje jakiegoś pola w HTML (złe ID)!");
-                alert("Błąd: Nie znaleziono wszystkich pól formularza. Sprawdź konsolę.");
-                return; // Zatrzymujemy wysyłkę
-            }
-
-            // 2. Pobieranie i parsowanie danych
-            const coordsRaw = coordsEl.value;
-            const powierzchnia = areaEl.value.replace(/[^0-9.]/g, '');
-            const przeznaczenie = typeEl.value;
-            const cenaRaw = priceEl.value;
-            
-            const cena = cenaRaw ? parseFloat(cenaRaw) : 0; 
-            const status = "Dostępna";
-
-            let geometria;
-            try {
-                const parsedCoords = JSON.parse(coordsRaw);
-                geometria = { type: "Polygon", coordinates: [parsedCoords] };
-            } catch (err) {
-                alert("Błąd formatu współrzędnych! Wprowadź np: [[19.9, 50.0], [19.91, 50.0], [19.9, 50.0]]");
-                return;
-            }
-
-            // 3. Obiekt do wysłania
-            const nowaDzialka = {
-                geometriaGeoJSON: geometria,
-                powierzchnia: parseFloat(powierzchnia),
-                status: status,
-                przeznaczenie: przeznaczenie,
-                cena: cena
-            };
-
-            console.log("✅ ETAP 3: Obiekt gotowy do wysłania:", nowaDzialka);
-
-            // 4. Wysłanie żądania do API
-            const wynik = await API.request('/dzialki', 'POST', nowaDzialka);
-            console.log("✅ ETAP 4: Sukces API!", wynik);
-
-            alert('✅ ' + (wynik.wiadomosc || 'Nieruchomość dodana!'));
-            formNowaDzialka.reset();
-      
-            // Odświeżenie danych i mapy
-            const collapseEl = document.getElementById('collapseFormDzialka');
-            const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl);
-            bsCollapse.hide();
-
-            if (leafletGeoJsonLayer) map.removeLayer(leafletGeoJsonLayer);
-            pobierzDaneZSerwera(); 
-
-        } catch (error) {
-            console.error("❌ ETAP 4 BŁĄD: Błąd podczas dodawania działki:", error);
-            alert("Nie udało się dodać działki: " + error.message);
-        }
-    });
-} else {
-    console.warn("⚠️ UWAGA: Skrypt nie widzi formularza 'formNowaDzialka'.");
+    modal.show();
 }
+
+// Kopiowanie numeru ewidencyjnego do schowka
+document.getElementById('btnCopyPlotNumber')?.addEventListener('click', () => {
+    const nr = document.getElementById('copyTargetNum').textContent;
+    navigator.clipboard.writeText(nr).then(() => {
+        const toast = new bootstrap.Toast(document.getElementById('copyToast'));
+        toast.show();
+    });
 });
 
-// --- GLOBALNA FUNKCJA DO USUWANIA DZIAŁKI Z TABELI URZĘDNIKA ---
+// 5. USUWANIE DZIAŁKI (Zadanie Beaty: DELETE /api/dzialki/:id)
 window.usunDzialke = async function(id) {
-    // 1. Pytamy użytkownika o potwierdzenie (zabezpieczenie przed przypadkowym kliknięciem)
-    const potwierdzenie = confirm(`Czy na pewno chcesz trwale usunąć działkę #${id}? Tej operacji nie można cofnąć.`);
-    
-    if (!potwierdzenie) return; // Jeśli urzędnik kliknie "Anuluj", przerywamy
-
+    if (!confirm(`Czy na pewno chcesz usunąć działkę #${id}?`)) return;
     try {
-        // 2. Wysłanie żądania DELETE do backendu
         const wynik = await API.request(`/dzialki/${id}`, 'DELETE');
-        
-        alert('✅ ' + (wynik.wiadomosc || 'Działka usunięta!'));
-
-        // 3. Po pomyślnym usunięciu odświeżamy listę i mapę
-        if (typeof pobierzDaneZSerwera === "function") {
-            pobierzDaneZSerwera();
-        } else {
-            // W razie problemów ze ścieżkami, po prostu przeładowujemy stronę
-            window.location.reload();
-        }
-
+        alert('✅ ' + (wynik.wiadomosc || 'Działka usunięta z zasobów katastralnych.'));
+        pobierzDaneZSerwera(); // Dynamiczne odświeżenie mapy i tabeli na żywo
     } catch (error) {
-        console.error("Błąd usuwania działki:", error);
-        alert("❌ Nie udało się usunąć działki: " + error.message);
+        alert("❌ Błąd usuwania: " + error.message);
     }
 };
+
+// 6. OBSŁUGA FILTRÓW MAPY
+function uruchomFiltrowanie() {
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.replaceWith(pill.cloneNode(true));
+    });
+
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.addEventListener('click', function() {
+            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            
+            const filtr = this.getAttribute('data-filter');
+            document.querySelectorAll('.plot-list-card').forEach(karta => {
+                const isLicytacjaCard = karta.dataset.status === 'Aktywna licytacja' || karta.dataset.status === 'Aktywna aukcja';
+                if (filtr === 'all' || karta.dataset.typ === filtr || (filtr === 'Aktywna licytacja' && isLicytacjaCard)) {
+                    karta.style.setProperty('display', 'flex', 'important');
+                } else {
+                    karta.style.setProperty('display', 'none', 'important');
+                }
+            });
+        });
+    });
+}
+
+// 7. DODAWANIE NOWEJ DZIAŁKI (Zadanie Beaty: POST /api/dzialki)
+const formNowaDzialka = document.getElementById('formNowaDzialka');
+if (formNowaDzialka) {
+    formNowaDzialka.addEventListener('submit', async (e) => {
+        e.preventDefault(); 
+        
+        const coordsEl = document.getElementById('plotCoords');
+        const areaEl = document.getElementById('plotArea');
+        const typeEl = document.getElementById('plotType');
+        const priceEl = document.getElementById('plotPrice');
+
+        let geometria;
+        try {
+            const parsedCoords = JSON.parse(coordsEl.value);
+            geometria = { type: "Polygon", coordinates: [parsedCoords] };
+        } catch (err) {
+            alert("Błąd formatu geometrii! Podaj tablicę punktów, np: [[19.94,50.06],[19.95,50.06],[19.95,50.05],[19.94,50.05],[19.94,50.06]]");
+            return;
+        }
+
+        const nowaDzialka = {
+            geometriaGeoJSON: geometria,
+            powierzchnia: parseFloat(areaEl.value.replace(/[^0-9.]/g, '')),
+            status: "Dostępna",
+            przeznaczenie: typeEl.value,
+            cena: priceEl.value ? parseFloat(priceEl.value) : 0.00
+        };
+
+        try {
+            const wynik = await API.request('/dzialki', 'POST', nowaDzialka);
+            alert('✅ ' + (wynik.wiadomosc || 'Nieruchomość gruntowa została zapisana w bazie PostgreSQL.'));
+            formNowaDzialka.reset();
+            
+            const collapseEl = document.getElementById('collapseFormDzialka');
+            const bsCollapse = bootstrap.Collapse.getInstance(collapseEl);
+            if(bsCollapse) bsCollapse.hide();
+
+            pobierzDaneZSerwera();
+        } catch (error) {
+            alert("Nie udało się zapisać działki: " + error.message);
+        }
+    });
+}
+
+// 8. FIX DLA ZAKŁADEK SPA (Automatyczne odświeżanie siatki kafelków Leaflet)
+window.addEventListener('hashchange', () => {
+    if (window.location.hash === '#mapa' || window.location.hash === '') {
+        setTimeout(() => map.invalidateSize(), 200);
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    pobierzDaneZSerwera();
+    setTimeout(() => map.invalidateSize(), 400);
+});
