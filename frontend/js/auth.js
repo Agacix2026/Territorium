@@ -5,31 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLoguj = document.getElementById('btnLoguj');
     const btnRejestruj = document.getElementById('btnRejestruj');
 
-    function pokazToasta(wiadomosc, typ = 'primary') {
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-            toastContainer.style.zIndex = '1060';
-            document.body.appendChild(toastContainer);
-        }
-        
-        const toastEl = document.createElement('div');
-        toastEl.className = `toast align-items-center text-bg-${typ} border-0 mb-2`;
-        toastEl.setAttribute('role', 'alert');
-        toastEl.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body"><i class="bi bi-info-circle-fill me-2"></i>${wiadomosc}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
-        toastContainer.appendChild(toastEl);
-        const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
-        toast.show();
-        
-        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
-    }
-
     function zaktualizujNawigacje() {
         const token = localStorage.getItem('jwt_token');
         const userString = localStorage.getItem('user_data');
@@ -66,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         wylogujBtn.classList.remove('disabled');
                         zaktualizujNawigacje();
                         window.location.hash = '#mapa'; 
-                        pokazToasta('Pomyślnie wylogowano z systemu.', 'secondary');
+                        pokazPowiadomienie('Pomyślnie wylogowano z systemu.', 'secondary');
                     }, 1000);
                 };
             }
@@ -82,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnLoguj) {
         btnLoguj.addEventListener('click', async (e) => {
             e.preventDefault();
+            if(!loginEmail.value || !loginHaslo.value) return pokazPowiadomienie('Wprowadź login i hasło.', 'danger');
             try {
                 const response = await API.request('/uzytkownicy/login', 'POST', {
                     login: loginEmail.value,
@@ -90,18 +66,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('jwt_token', response.token);
                 localStorage.setItem('user_data', JSON.stringify(response.user));
                 
-                pokazToasta(`Zalogowano jako: ${response.user.login}`, 'success');
+                pokazPowiadomienie(`Zalogowano jako: ${response.user.login}`, 'success');
                 zaktualizujNawigacje();
                 window.location.hash = '#mapa';
             } catch (err) {
-                alert('Logowanie nie powiodło się: ' + err.message);
+                pokazPowiadomienie('Logowanie nie powiodło się: ' + err.message, 'danger');
             }
         });
     }
 
     if (btnRejestruj) {
         btnRejestruj.addEventListener('click', async () => {
-            if (!checkObywatel.checked) return alert('Wymagane obywatelstwo RP przy rejestracji!');
+            if (!checkObywatel.checked) return pokazPowiadomienie('Wymagane obywatelstwo RP przy rejestracji!', 'danger');
             try {
                 await API.request('/uzytkownicy/register', 'POST', {
                     login: loginEmail.value,
@@ -109,15 +85,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     czyObywatelRP: true,
                     rola: 'Mieszkaniec'
                 });
-                alert('Konto utworzone! Teraz kliknij Zaloguj.');
+                pokazPowiadomienie('Konto utworzone! Teraz kliknij Zaloguj.', 'success');
             } catch (err) {
-                alert('Rejestracja nie powiodła się: ' + err.message);
+                pokazPowiadomienie('Rejestracja nie powiodła się: ' + err.message, 'danger');
             }
         });
     }
 });
 
-// FUNKCJE URZĘDNIKA DO WADIUM
 window.zaladujWnioskiWadium = async function () {
     const tabela = document.getElementById('tabela-wadium-body');
     if (!tabela) return;
@@ -150,30 +125,24 @@ window.zaladujWnioskiWadium = async function () {
 };
 
 window.zatwierdzWadium = async function (idUzytkownika, wniosekId) {
-    const potwierdzenie = confirm('Czy na pewno chcesz zaksięgować wpłatę i zezwolić na licytację w tej aukcji?');
-    if (!potwierdzenie) return;
+    if (!(await potwierdzAkcje('Czy na pewno chcesz zaksięgować wpłatę i zezwolić na licytację w tej aukcji?'))) return;
     try {
         await API.request(`/aukcje/wnioski/${wniosekId}/zatwierdz`, 'PATCH', {});
-        // alert(' ✅ Sukces! Wpłata zaksięgowana. Użytkownik ma odblokowaną licytację.');
+        pokazPowiadomienie('Sukces! Wpłata zaksięgowana.', 'success');
         const wiersz = document.getElementById(`wadium-row-${wniosekId}`);
         if (wiersz) {
             wiersz.style.transition = "opacity 0.5s";
             wiersz.style.opacity = "0";
             setTimeout(() => wiersz.remove(), 500);
         }
-    } catch (error) { alert(` ❌ Błąd: ${error.message}`); }
+    } catch (error) { pokazPowiadomienie(`Błąd: ${error.message}`, 'danger'); }
 };
 
-// NOWOŚĆ: PRAWDZIWE ODRZUCANIE W BAZIE!
 window.odrzucWadium = async function (wniosekId) {
-    const potwierdzenie = confirm('Czy na pewno chcesz odrzucić wniosek o licytację? Użytkownik będzie musiał zgłosić się ponownie.');
-    if (!potwierdzenie) return;
-    
+    if (!(await potwierdzAkcje('Czy na pewno chcesz odrzucić wniosek o licytację?'))) return;
     try {
-        // Wysyłamy żądanie usunięcia do bazy danych
         await API.request(`/aukcje/wnioski/${wniosekId}`, 'DELETE', {});
-        
-        // Płynne usunięcie wiersza z ekranu po sukcesie bazy
+        pokazPowiadomienie('Wniosek został odrzucony.', 'success');
         const wiersz = document.getElementById(`wadium-row-${wniosekId}`);
         if (wiersz) {
             wiersz.style.transition = "opacity 0.5s";
@@ -181,7 +150,7 @@ window.odrzucWadium = async function (wniosekId) {
             setTimeout(() => wiersz.remove(), 500);
         }
     } catch (error) {
-        alert(` ❌ Błąd odrzucania wniosku: ${error.message}`);
+        pokazPowiadomienie(`Błąd odrzucania wniosku: ${error.message}`, 'danger');
     }
 };
 

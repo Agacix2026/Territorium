@@ -101,7 +101,7 @@ function renderujDzialki(daneZ_API) {
         }
     });
 
-    uruchomFiltrowanie(); // Włączamy z powrotem filtry na liście!
+    uruchomFiltrowanie();
 }
 
 function uruchomFiltrowanie() {
@@ -139,7 +139,6 @@ function otworzSzczegoly(dzialka) {
     const actionBtn = document.getElementById('modalActionBtn');
     if (dzialka.status === 'Aktywna aukcja' || dzialka.status === 'Aktywna licytacja') {
         actionBtn.classList.remove('d-none');
-        // Zamiast polegać na błędnym data-bs-dismiss html, obsługujemy przejście ręcznie w JS
         actionBtn.onclick = function() {
             localStorage.setItem('selected_auction_id', dzialka.id);
             const myModalEl = document.getElementById('dzialkaModal');
@@ -155,19 +154,21 @@ function otworzSzczegoly(dzialka) {
 }
 
 window.usunDzialke = async function (id) {
-    if (!confirm(`Czy na pewno chcesz usunąć działkę #${id}?`)) return;
+    if (!(await potwierdzAkcje(`Czy na pewno chcesz usunąć działkę #${id}?`))) return;
     try {
         await API.request(`/dzialki/${id}`, 'DELETE');
+        pokazPowiadomienie(`Działka #${id} została pomyślnie usunięta.`, 'success');
         pobierzDaneZSerwera();
-    } catch (error) { alert(" ❌ Błąd usuwania: " + error.message); }
+    } catch (error) { pokazPowiadomienie("Błąd usuwania: " + error.message, 'danger'); }
 };
 
 window.zmienStatusDzialki = async function(id, nowyStatus) {
-    if (!confirm(`Czy chcesz zmienić status działki na: "${nowyStatus}"?`)) return;
+    if (!(await potwierdzAkcje(`Czy zmienić status działki na: "${nowyStatus}"?`))) return;
     try {
         await API.request(`/dzialki/${id}/status`, 'PATCH', { nowyStatus: nowyStatus });
+        pokazPowiadomienie(`Zmieniono status na: ${nowyStatus}`, 'success');
         pobierzDaneZSerwera();
-    } catch (error) { alert(" ❌ Błąd zmiany statusu: " + error.message); }
+    } catch (error) { pokazPowiadomienie("Błąd zmiany statusu: " + error.message, 'danger'); }
 };
 
 const formNowaDzialka = document.getElementById('formNowaDzialka');
@@ -185,18 +186,17 @@ if (formNowaDzialka) {
                 cena: parseFloat(document.getElementById('plotPrice').value) || 0
             };
             await API.request('/dzialki', 'POST', nowaDzialka);
-            alert(' ✅ Nieruchomość została zapisana.');
+            pokazPowiadomienie('Nieruchomość została zapisana w bazie.', 'success');
             formNowaDzialka.reset();
             pobierzDaneZSerwera();
-        } catch (error) { alert("Błąd zapisu! Upewnij się że współrzędne zaczynają się od podwójnego nawiasu [["); }
+        } catch (error) { pokazPowiadomienie("Błąd zapisu! Sprawdź współrzędne.", 'danger'); }
     });
 }
 
 document.getElementById('btnCopyPlotNumber')?.addEventListener('click', () => {
     const nr = document.getElementById('copyTargetNum').textContent;
     navigator.clipboard.writeText(nr).then(() => {
-        const toast = new bootstrap.Toast(document.getElementById('copyToast'));
-        toast.show();
+        pokazPowiadomienie('Skopiowano nazwę do schowka.', 'primary');
     });
 });
 

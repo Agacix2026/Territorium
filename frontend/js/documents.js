@@ -2,21 +2,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const documentsTableBody = document.getElementById("documentsTableBody");
     const addDocumentBtnUrzednik = document.getElementById("addDocumentBtnUrzednik");
 
-    // Funkcja sprawdzająca czy zalogowany jest Admin
     function isAdmin() {
         const userString = localStorage.getItem('user_data');
         if (!userString) return false;
         try { return JSON.parse(userString).rola === 'Admin'; } catch(e) { return false; }
     }
 
-    // Dynamiczne pobieranie dokumentów z API
     window.loadDocuments = async function () {
         if (!documentsTableBody) return;
         try {
             const theadTr = documentsTableBody.parentElement.querySelector('thead tr');
             const czyAdmin = isAdmin();
 
-            // Dynamiczny nagłówek - 4 kolumny dla Admina, 3 dla zwykłego użytkownika
             if (theadTr) {
                 theadTr.innerHTML = `
                     <th style="width: 80px;">ID</th>
@@ -38,13 +35,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             docs.forEach(doc => {
                 const tr = document.createElement('tr');
-
-                // Kolumna z przyciskami tylko dla Admina
                 let actionButtonsCell = '';
                 if (czyAdmin) {
                     actionButtonsCell = `
                         <td class="text-end text-nowrap">
-                            <button class="btn btn-sm btn-outline-primary shadow-sm border-0" onclick="alert('Trwa generowanie bezpiecznego linku pobierania dla pliku ${doc.nazwa}...')">
+                            <button class="btn btn-sm btn-outline-primary shadow-sm border-0" onclick="pokazPowiadomienie('Pobieranie pliku PDF zostało rozpoczęte.', 'primary')">
                                 <i class="bi bi-download"></i> Pobierz
                             </button>
                             <button class="btn btn-sm btn-outline-danger shadow-sm border-0 ms-1" onclick="usunDokument(${doc.id}, '${doc.nazwa}')" title="Usuń trwale">
@@ -68,18 +63,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Funkcja globalna do usuwania dokumentów
     window.usunDokument = async function (id, nazwa) {
-        if (!confirm(`Czy na pewno chcesz usunąć dokument "${nazwa}"?`)) return;
+        if (!(await potwierdzAkcje(`Czy na pewno chcesz usunąć dokument "${nazwa}"?`))) return;
         try {
             await API.request(`/dokumenty/${id}`, 'DELETE');
-            loadDocuments();  // Odśwież tabelę po usunięciu
+            pokazPowiadomienie('Dokument został trwale usunięty.', 'success');
+            loadDocuments(); 
         } catch (error) {
-            alert(' ❌ Błąd usuwania: ' + error.message);
+            pokazPowiadomienie('Błąd usuwania: ' + error.message, 'danger');
         }
     };
 
-    // Dodawanie dokumentu przez Panel Urzędnika
     if (addDocumentBtnUrzednik) {
         addDocumentBtnUrzednik.addEventListener("click", async () => {
             const nazwa = document.getElementById('documentNameUrzednik').value;
@@ -87,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const obiektTyp = document.getElementById('documentObiektTypUrzednik').value;
 
             if (!nazwa || !obiektId) {
-                return alert('Wypełnij nazwę dokumentu oraz ID powiązanego zasobu!');
+                return pokazPowiadomienie('Wypełnij nazwę dokumentu oraz ID powiązanego zasobu!', 'warning');
             }
 
             try {
@@ -101,12 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     obiekt_typ: obiektTyp
                 });
 
-                alert(' ✅ Dokument został dodany pomyślnie i zapisany w bazie PostgreSQL.');
+                pokazPowiadomienie('Dokument zapisany w bazie PostgreSQL.', 'success');
                 document.getElementById('formularzDokumentuUrzednik').reset();
-                loadDocuments();  // Odśwież tabelę w tle
+                loadDocuments(); 
 
             } catch (error) {
-                alert(' ❌ Brak uprawnień lub błąd zapisu: ' + error.message);
+                pokazPowiadomienie('Błąd zapisu: ' + error.message, 'danger');
             } finally {
                 addDocumentBtnUrzednik.disabled = false;
                 addDocumentBtnUrzednik.innerHTML = '<i class="bi bi-cloud-arrow-up me-1"></i> Wyślij do bazy';
@@ -114,14 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Śledzenie zmian widoków w SPA, aby odświeżyć dane i nagłówki przy przelogowaniu
     window.addEventListener('hashchange', () => {
-        if (window.location.hash === '#dokumenty' || window.location.hash === '#panel-urzednika') {
-            loadDocuments();
-        }
+        if (window.location.hash === '#dokumenty' || window.location.hash === '#panel-urzednika') loadDocuments();
     });
 
-    // Inicjalizacja przy pierwszym załadowaniu strony
     if (window.location.hash === '#dokumenty' || window.location.hash === '#panel-urzednika' || !window.location.hash) {
         loadDocuments();
     }

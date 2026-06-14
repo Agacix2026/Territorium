@@ -1,4 +1,3 @@
-// frontend/js/auctions.js - Dynamiczne renderowanie wielu aukcji
 function pobierzDaneSesji() {
     const token = localStorage.getItem('jwt_token');
     const userString = localStorage.getItem('user_data');
@@ -87,12 +86,12 @@ function renderAukcje(aukcje, user) {
 }
 
 window.zglosWadium = async function(aukcjaId, userId) {
-    if(!confirm('Zaraz zostaniesz przekierowany do systemu płatności wadium. Kontynuować?')) return;
+    if(!(await potwierdzAkcje('Zaraz zostaniesz przekierowany do systemu płatności wadium. Kontynuować?'))) return;
     try {
         await API.request(`/aukcje/${aukcjaId}/zglos-wadium`, 'POST', { id_uzytkownika: userId });
-        alert('Wniosek i wpłata wadium zostały zarejestrowane. Czekaj na weryfikację urzędu (Administrator musi zatwierdzić wpłatę w panelu).');
+        pokazPowiadomienie('Zgłoszenie zarejestrowane. Czekaj na zaksięgowanie wpłaty wadium.', 'success');
         pobierzWszystkieAukcje();
-    } catch(e) { alert('Błąd: ' + e.message); }
+    } catch(e) { pokazPowiadomienie('Błąd: ' + e.message, 'danger'); }
 };
 
 window.licytuj = async function(event, aukcjaId, aktualnaCena) {
@@ -101,11 +100,16 @@ window.licytuj = async function(event, aukcjaId, aktualnaCena) {
     const kwota = parseFloat(input.value);
     const user = pobierzDaneSesji();
 
-    if(kwota <= aktualnaCena) { alert('Twoja oferta musi być wyższa niż aktualna cena rynkowa!'); return; }
+    if(kwota <= aktualnaCena) { 
+        return pokazPowiadomienie('Twoja oferta musi być wyższa niż aktualna cena!', 'warning'); 
+    }
     try {
         const res = await API.request(`/aukcje/${aukcjaId}/bid`, 'POST', { id_licytanta: user.id, kwota_oferowana: kwota });
-        if(res.success) { alert('Gratulacje! Twoja oferta została złożona poprawnie.'); pobierzWszystkieAukcje(); }
-    } catch(e) { alert('Błąd odrzucenia oferty: ' + e.message); }
+        if(res.success) { 
+            pokazPowiadomienie('Gratulacje! Oferta została złożona poprawnie.', 'success'); 
+            pobierzWszystkieAukcje(); 
+        }
+    } catch(e) { pokazPowiadomienie('Błąd odrzucenia oferty: ' + e.message, 'danger'); }
 };
 
 window.addEventListener('hashchange', () => { if (window.location.hash === '#aukcje') pobierzWszystkieAukcje(); });

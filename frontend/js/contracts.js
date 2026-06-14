@@ -1,25 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
     const formPanel = document.getElementById('formularzUmowyPanel');
     const tableBody = document.getElementById('umowy-table-body-panel');
-    const alertError = document.getElementById('umowy-error-alert');
-    const alertSuccess = document.getElementById('umowy-success-alert');
 
     if (!tableBody) return;
 
-    // Sprawdzanie uprawnień
     function isAdmin() {
         const userString = localStorage.getItem('user_data');
         if (!userString) return false;
         try { return JSON.parse(userString).rola === 'Admin'; } catch(e) { return false; }
     }
 
-    // Dynamiczne pobieranie i rysowanie tabeli
     window.loadContracts = async function() {
         try {
             const theadTr = tableBody.parentElement.querySelector('thead tr');
             const czyAdmin = isAdmin();
             
-            // Dynamiczny nagłówek: 6 kolumn dla Admina, 5 dla zwykłego użytkownika
             if (theadTr) {
                 theadTr.innerHTML = `
                     <th>ID Umowy</th>
@@ -67,24 +62,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Usuwanie umowy
     window.usunUmowe = async function(id) {
-        if (!confirm(`Czy na pewno chcesz trwale usunąć umowę #${id}?`)) return;
+        if (!(await potwierdzAkcje(`Czy na pewno chcesz trwale usunąć umowę #${id}?`))) return;
         try {
             await API.request(`/umowy/${id}`, 'DELETE');
-            loadContracts(); // Odśwież tabelę
+            pokazPowiadomienie('Umowa została pomyślnie usunięta.', 'success');
+            loadContracts();
         } catch (error) {
-            alert('Błąd usuwania umowy: ' + error.message);
+            pokazPowiadomienie('Błąd usuwania umowy: ' + error.message, 'danger');
         }
     };
 
-    // Obsługa formularza panelu urzędnika
     if (formPanel) {
         formPanel.addEventListener('submit', async (e) => {
             e.preventDefault();
-            alertError.classList.add('d-none');
-            alertSuccess.classList.add('d-none');
-            
             const payload = {
                 id_dzialki: parseInt(document.getElementById('idDzialkiPanel').value),
                 id_najemcy: parseInt(document.getElementById('idNajemcyPanel').value),
@@ -95,34 +86,27 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             
             if (new Date(payload.data_zakonczenia) <= new Date(payload.data_rozpoczecia)) {
-                alertError.innerHTML = 'Data zakończenia musi być późniejsza niż data rozpoczęcia!';
-                alertError.classList.remove('d-none');
+                pokazPowiadomienie('Data zakończenia musi być późniejsza niż data rozpoczęcia!', 'warning');
                 return;
             }
             
             try {
                 document.getElementById('btnZapiszUmowePanel').disabled = true;
                 await API.request('/umowy', 'POST', payload);
-                alertSuccess.textContent = 'Umowa została wygenerowana pomyślnie!';
-                alertSuccess.classList.remove('d-none');
+                pokazPowiadomienie('Umowa została wygenerowana pomyślnie!', 'success');
                 formPanel.reset();
                 loadContracts();
             } catch (error) {
-                alertError.innerHTML = `Błąd serwera: ${error.message}`;
-                alertError.classList.remove('d-none');
+                pokazPowiadomienie(`Błąd serwera: ${error.message}`, 'danger');
             } finally {
                 document.getElementById('btnZapiszUmowePanel').disabled = false;
             }
         });
     }
 
-    // --- KLUCZOWA POPRAWKA: Przebudowuj tabelę przy wejściu w zakładkę ---
     window.addEventListener('hashchange', () => {
-        if (window.location.hash === '#umowy') {
-            loadContracts();
-        }
+        if (window.location.hash === '#umowy') loadContracts();
     });
-
     if (window.location.hash === '#umowy' || !window.location.hash) {
         loadContracts();
     }
