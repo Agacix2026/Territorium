@@ -1,142 +1,122 @@
+// frontend/js/documents.js - Pełna integracja modułu dokumentacji (Opcja usuwania dla Admina)
 document.addEventListener('DOMContentLoaded', () => {
-    // Tabela w widoku ogólnym (dla mieszkańca)
     const documentsTableBody = document.getElementById("documentsTableBody");
-    const toggleDocumentsBtn = document.getElementById("toggleDocumentsBtn");
-    
-    // Pola formularza dedykowane dla Panelu Urzędnika
     const addDocumentBtnUrzednik = document.getElementById("addDocumentBtnUrzednik");
-    const documentNameUrzednik = document.getElementById("documentNameUrzednik");
-    const documentObiektIdUrzednik = document.getElementById("documentObiektIdUrzednik");
-    const documentObiektTypUrzednik = document.getElementById("documentObiektTypUrzednik");
 
-    let expanded = false;
+    // Funkcja sprawdzająca czy zalogowany jest Admin
+    function isAdmin() {
+        const userString = localStorage.getItem('user_data');
+        if (!userString) return false;
+        try {
+            return JSON.parse(userString).rola === 'Admin';
+        } catch(e) {
+            return false;
+        }
+    }
 
-    // 1. Obsługa ukrywania/pokazywania nadmiarowych wierszy tabeli (Zasada limitu wierszy Madzi)
-    const checkVisibility = () => {
+    // Dynamiczne pobieranie dokumentów z API
+    window.loadDocuments = async function() {
         if (!documentsTableBody) return;
-        const rows = documentsTableBody.querySelectorAll("tr");
-        rows.forEach((row, index) => {
-            if (index >= 2) {
-                row.style.display = expanded ? "table-row" : "none";
-            } else {
-                row.style.display = "table-row";
+        try {
+            documentsTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Ładowanie dokumentacji...</td></tr>';
+            
+            const docs = await API.request('/dokumenty', 'GET');
+            documentsTableBody.innerHTML = '';
+            
+            if (docs.length === 0) {
+                documentsTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Brak dokumentów technicznych w systemie.</td></tr>';
+                return;
             }
-        });
-        if (toggleDocumentsBtn) {
-            toggleDocumentsBtn.textContent = expanded ? "Pokaż mniej" : "Pokaż więcej";
+
+            const czyAdmin = isAdmin();
+
+            docs.forEach(doc => {
+                const tr = document.createElement('tr');
+                
+                // Przyciski akcji
+                let actionButtons = `
+                    <button class="btn btn-sm btn-outline-primary" onclick="alert('Trwa generowanie bezpiecznego linku pobierania dla pliku ${doc.nazwa}...')">
+                        <i class="bi bi-download"></i> Pobierz
+                    </button>
+                `;
+
+                // Jeśli to Admin, dokładamy przycisk usuwania
+                if (czyAdmin) {
+                    actionButtons += `
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="usunDokument(${doc.id}, '${doc.nazwa}')" title="Usuń trwale">
+                            <i class="bi bi-trash3-fill"></i>
+                        </button>
+                    `;
+                }
+
+                tr.innerHTML = `
+                    <td class="fw-bold">${doc.id}</td>
+                    <td>${doc.nazwa} <br><small class="text-muted">(Powiązanie: ${doc.obiekt_typ.toUpperCase()} #${doc.obiekt_id})</small></td>
+                    <td><span class="badge bg-danger"><i class="bi bi-file-earmark-pdf me-1"></i>${doc.typ_pliku}</span></td>
+                    <td>${actionButtons}</td>
+                `;
+                documentsTableBody.appendChild(tr);
+            });
+        } catch (error) {
+            documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-danger text-center"><i class="bi bi-exclamation-triangle me-2"></i>Błąd pobierania dokumentów: ${error.message}</td></tr>`;
+        }
+    }
+
+    // Funkcja globalna do usuwania dokumentów
+    window.usunDokument = async function(id, nazwa) {
+        if (!confirm(`Czy na pewno chcesz usunąć dokument "${nazwa}"?`)) return;
+        try {
+            await API.request(`/dokumenty/${id}`, 'DELETE');
+            loadDocuments(); // Odśwież tabelę po usunięciu
+        } catch (error) {
+            alert(' ❌ Błąd usuwania: ' + error.message);
         }
     };
 
-    // 2. Funkcja pomocnicza budująca wiersz w tabeli dla mieszkańca
-    function renderDocumentRow(doc) {
-        if (!documentsTableBody) return;
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td>${doc.id}</td>
-            <td>
-                <div class="fw-bold">${doc.nazwa}</div>
-                <div class="text-muted small">Przypisano do: ${doc.obiekt_typ === 'dzialka' ? 'Działka' : 'Budynek'} (ID: ${doc.obiekt_id})</div>
-            </td>
-            <td><span class="badge bg-danger">${doc.typ_pliku || 'PDF'}</span></td>
-            <td><button class="btn btn-sm btn-primary download-btn" data-id="${doc.id}"><i class="bi bi-download me-1"></i>Pobierz</button></td>
-        `;
-        documentsTableBody.appendChild(row);
-    }
-
-    // 3. ZADANIE: Pobieranie i dynamiczne renderowanie danych z bazy (GET)
-    async function loadDocuments() {
-        if (!documentsTableBody) return; // Zapobiega błędom na innych widokach
-
-        try {
-            console.log("Aplication debug: Uruchamiam loadDocuments i strzelam do API...");
-            documentsTableBody.innerHTML = ""; 
-            
-            // Poprawione z '/api/dokumenty' na '/dokumenty' (unikamy błędu api/api/dokumenty)
-            const documents = await API.request('/dokumenty', 'GET');
-            console.log("Aplication debug: API zwróciło pomyślnie dokumenty:", documents);
-
-            if (!documents || documents.length === 0) {
-                documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-muted text-center py-3">Brak wdrożonych plików PDF w repozytorium mienia.</td></tr>`;
-                if (toggleDocumentsBtn) toggleDocumentsBtn.style.display = "none";
-                return;
-            }
-
-            if (toggleDocumentsBtn) toggleDocumentsBtn.style.display = "inline-block";
-
-            // Renderowanie pętli danych
-            documents.forEach(doc => {
-                renderDocumentRow(doc);
-            });
-
-            // Ukrycie dokumentów powyżej indeksu 2
-            checkVisibility();
-
-        } catch (error) {
-            console.error("Aplication debug: Napotkano błąd podczas pobierania przez API:", error);
-            documentsTableBody.innerHTML = `
-                <tr>
-                    <td colspan="4" class="text-danger text-center py-3">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Błąd połączenia katastralnego z bazą danych PostGIS.
-                    </td>
-                </tr>`;
-        }
-    }
-
-    // Odpalenie ładowania bazy od razu na start
-    loadDocuments();
-
-    // 4. ZADANIE: Ożywienie formularza w Panelu Urzędnika (POST)
+    // Dodawanie dokumentu przez Panel Urzędnika
     if (addDocumentBtnUrzednik) {
         addDocumentBtnUrzednik.addEventListener("click", async () => {
-            const nazwaPliku = documentNameUrzednik.value.trim();
-            const obiektId = documentObiektIdUrzednik.value;
-            const obiektTyp = documentObiektTypUrzednik.value;
+            const nazwa = document.getElementById('documentNameUrzednik').value;
+            const obiektId = document.getElementById('documentObiektIdUrzednik').value;
+            const obiektTyp = document.getElementById('documentObiektTypUrzednik').value;
 
-            if (nazwaPliku === "") {
-                alert("Urzędniku! Wprowadź oficjalną nazwę dokumentu technicznego przed dodaniem.");
-                return;
+            if (!nazwa || !obiektId) {
+                return alert('Wypełnij nazwę dokumentu oraz ID powiązanego zasobu!');
             }
 
-            const payload = {
-                nazwa: nazwaPliku,
-                typ_pliku: "PDF",
-                obiekt_id: parseInt(obiektId),
-                obiekt_typ: obiektTyp
-            };
-
             try {
-                console.log("Aplication debug: Próba zapisu nowego dokumentu (POST)... Payload:", payload);
-                
-                // Poprawione z '/api/dokumenty' na '/dokumenty'
-                await API.request('/dokumenty', 'POST', payload);
+                addDocumentBtnUrzednik.disabled = true;
+                addDocumentBtnUrzednik.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Wysyłanie...';
 
-                alert("Urzędnik: Dokument został pomyślnie zwalidowany i zapisany w rejestrze!");
-                documentNameUrzednik.value = ""; // Czyszczenie inputa
+                await API.request('/dokumenty', 'POST', {
+                    nazwa: nazwa,
+                    typ_pliku: 'PDF',
+                    obiekt_id: parseInt(obiektId),
+                    obiekt_typ: obiektTyp
+                });
                 
-                // Automatyczne odświeżenie tabeli po stronie mieszkańca
-                await loadDocuments();
-
+                alert(' ✅ Dokument został dodany pomyślnie i zapisany w bazie PostgreSQL.');
+                document.getElementById('formularzDokumentuUrzednik').reset();
+                loadDocuments(); // Odśwież tabelę w tle
+                
             } catch (error) {
-                console.error("Aplication debug: API odrzuciło operację zapisu formularza:", error);
-                alert(`Błąd zapisu na serwerze: ${error.message}`);
+                alert(' ❌ Brak uprawnień lub błąd zapisu: ' + error.message);
+            } finally {
+                addDocumentBtnUrzednik.disabled = false;
+                addDocumentBtnUrzednik.innerHTML = '<i class="bi bi-cloud-arrow-up me-1"></i> Wyślij do bazy';
             }
         });
     }
 
-    // 5. Obsługa kliknięcia "Pobierz" w tabeli
-    document.addEventListener("click", (event) => {
-        const target = event.target.closest(".download-btn");
-        if (target) {
-            const docId = target.getAttribute("data-id");
-            alert(`Pobieranie dokumentu o ID bazy: ${docId}. Plik PDF został pobrany z dysku sieciowego.`);
+    // Śledzenie zmian widoków w SPA, aby odświeżyć dane
+    window.addEventListener('hashchange', () => {
+        if (window.location.hash === '#dokumenty' || window.location.hash === '#panel-urzednika') {
+            loadDocuments();
         }
     });
 
-    // 6. Przełącznik rozwijania wierszy tabeli (Pokaż więcej / mniej)
-    if (toggleDocumentsBtn) {
-        toggleDocumentsBtn.addEventListener("click", () => {
-            expanded = !expanded;
-            checkVisibility();
-        });
+    // Inicjalizacja przy pierwszym załadowaniu strony
+    if (window.location.hash === '#dokumenty' || window.location.hash === '#panel-urzednika' || !window.location.hash) {
+        loadDocuments();
     }
 });

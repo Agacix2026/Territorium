@@ -9,23 +9,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function zaktualizujNawigacje() {
         const token = localStorage.getItem('jwt_token');
         const userString = localStorage.getItem('user_data');
-        
+
         const navItemLogowanie = document.getElementById('navItemLogowanie');
         const navItemWyloguj = document.getElementById('navItemWyloguj');
         const wylogujUser = document.getElementById('wylogujUser');
         const wylogujBtn = document.getElementById('wylogujBtn');
-
         if (token && userString) {
             const user = JSON.parse(userString);
-            
-            // Zalogowany: Ukrywamy "Logowanie", pokazujemy "Wyloguj"
             if (navItemLogowanie) navItemLogowanie.classList.add('d-none');
             if (navItemWyloguj) {
                 navItemWyloguj.classList.remove('d-none');
                 if (wylogujUser) wylogujUser.textContent = `(${user.login})`;
             }
-
-            // Akcja dla przycisku wylogowania
             if (wylogujBtn) {
                 wylogujBtn.onclick = (e) => {
                     e.preventDefault();
@@ -36,18 +31,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
             }
         } else {
-            // Niezalogowany: Pokazujemy "Logowanie", ukrywamy "Wyloguj"
             if (navItemLogowanie) navItemLogowanie.classList.remove('d-none');
             if (navItemWyloguj) navItemWyloguj.classList.add('d-none');
         }
     }
-
-    // Uruchamiamy funkcję od razu po załadowaniu strony
     zaktualizujNawigacje();
 
     // --- LOGOWANIE ---
     if (btnLoguj) {
-        btnLoguj.addEventListener('click', async () => {
+        btnLoguj.addEventListener('click', async (e) => {
+            e.preventDefault();
             try {
                 const response = await API.request('/uzytkownicy/login', 'POST', {
                     login: loginEmail.value,
@@ -82,47 +75,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- FUNKCJA DLA URZĘDNIKA: Zatwierdzanie Wadium i Zmiana Roli ---
-window.zatwierdzWadium = async function(idUzytkownika, wierszId) {
-    const potwierdzenie = confirm('Czy na pewno chcesz zatwierdzić wpłatę i nadać temu użytkownikowi prawa Licytanta?');
-    if (!potwierdzenie) return;
+// --- FUNKCJE DLA URZĘDNIKA ---
+
+// Dynamiczne ładowanie wniosków z bazy danych
+window.zaladujWnioskiWadium = async function() {
+    const tabela = document.getElementById('tabela-wadium-body');
+    if (!tabela) return;
 
     try {
-        const response = await fetch(`http://localhost:3000/api/uzytkownicy/${idUzytkownika}/rola`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-                // Jeśli masz już wdrożone JWT, tutaj docelowo dodasz:
-                // 'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({ nowaRola: 'Licytant' })
+        const wnioski = await API.request('/aukcje/wnioski/wadium', 'GET');
+        tabela.innerHTML = '';
+
+        if (wnioski.length === 0) {
+            tabela.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Brak oczekujących wpłat wadium.</td></tr>';
+            return;
+        }
+
+        wnioski.forEach(w => {
+            const tr = document.createElement('tr');
+            tr.id = `wadium-row-${w.wniosek_id}`;
+            tr.innerHTML = `
+                <td><div class="fw-bold text-dark">${w.login}</div><div class="text-muted small">Użytkownik ID: ${w.user_id}</div></td>
+                <td>Działka N/${w.aukcja_id}</td>
+                <td><span class="badge bg-warning bg-opacity-25 text-dark border border-warning border-opacity-50"><i class="bi bi-hourglass-split me-1"></i>Oczekuje</span></td>
+                <td class="text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="zatwierdzWadium(${w.user_id}, ${w.wniosek_id})" title="Zatwierdź wadium"><i class="bi bi-check-lg"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="odrzucWadium(${w.wniosek_id})" title="Odrzuć wniosek"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                </td>
+            `;
+            tabela.appendChild(tr);
         });
+    } catch (err) {
+        console.error('Błąd pobierania wniosków:', err);
+    }
+};
 
-        const result = await response.json();
+window.zatwierdzWadium = async function (idUzytkownika, wniosekId) {
+    const potwierdzenie = confirm('Czy na pewno chcesz zatwierdzić wpłatę i nadać temu użytkownikowi prawa Licytanta?');
+    if (!potwierdzenie) return;
+    try {
+        // Zamiast błędnego fetch na port 3000, używamy API.request na zdefiniowany w configu port
+        await API.request(`/uzytkownicy/${idUzytkownika}/rola`, 'PATCH', { nowaRola: 'Licytant' });
+        
+        // Zmiana statusu wniosku w bazie, żeby zniknął z listy do akceptacji
+        await API.request(`/aukcje/wnioski/${wniosekId}/zatwierdz`, 'PATCH', {});
 
-        if (response.ok) {
-            alert('✅ Sukces! Obywatel otrzymał status Licytanta i może brać udział w aukcji.');
-            
-            // Ukrycie wiersza w tabeli po udanej akceptacji
-            const wiersz = document.getElementById(wierszId);
-            if (wiersz) {
-                wiersz.style.transition = "opacity 0.5s";
-                wiersz.style.opacity = "0";
-                setTimeout(() => wiersz.remove(), 500);
-            }
-        } else {
-            alert(`❌ Odmowa serwera: ${result.error || 'Błąd zmiany roli'}`);
+        alert(' ✅ Sukces! Obywatel otrzymał status Licytanta i może brać udział w aukcji.');
+
+        const wiersz = document.getElementById(`wadium-row-${wniosekId}`);
+        if (wiersz) {
+            wiersz.style.transition = "opacity 0.5s";
+            wiersz.style.opacity = "0";
+            setTimeout(() => wiersz.remove(), 500);
         }
     } catch (error) {
         console.error('Błąd połączenia z API:', error);
-        alert('Wystąpił błąd sieciowy. Sprawdź, czy serwer backendu działa.');
+        alert(` ❌ Błąd: ${error.message}`);
     }
 };
 
-window.odrzucWadium = function(wierszId) {
+window.odrzucWadium = function (wniosekId) {
     const potwierdzenie = confirm('Czy odrzucić wniosek o licytację?');
     if (potwierdzenie) {
-        const wiersz = document.getElementById(wierszId);
+        // Tu docelowo mógłby być patch odrzucający wniosek na stałe
+        const wiersz = document.getElementById(`wadium-row-${wniosekId}`);
         if (wiersz) wiersz.remove();
     }
 };
+
+// Podpięcie ładowania wniosków po wejściu do panelu urzędnika
+window.addEventListener('hashchange', () => {
+    if (window.location.hash === '#panel-urzednika') {
+        window.zaladujWnioskiWadium();
+    }
+});
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.hash === '#panel-urzednika') {
+        window.zaladujWnioskiWadium();
+    }
+});

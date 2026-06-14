@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { verifyAdmin } = require('../middleware/auth'); // Zabezpieczenie dla Admina
 
-// ENDPOINT: POBIERANIE DZIAŁEK (GET)
+// ENDPOINT: POBIERANIE DZIAŁEK (GET) - Publiczny
 router.get('/', async (req, res) => {
     try {
         const query = `
@@ -11,10 +12,11 @@ router.get('/', async (req, res) => {
                 n.powierzchnia, 
                 n.status, 
                 n.przeznaczenie, 
-                n.cena,
+                n.cena, 
                 ST_AsGeoJSON(n.wspolrzedne)::json AS wspolrzedne 
             FROM Nieruchomosci n
-            LEFT JOIN Aukcje a ON n.ID = a.id_nieruchomosci;
+            LEFT JOIN Aukcje a ON n.ID = a.id_nieruchomosci
+            ORDER BY n.ID ASC;
         `;
         const result = await pool.query(query);
         res.status(200).json(result.rows);
@@ -24,22 +26,23 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ENDPOINT: DODAWANIE NOWEJ DZIAŁKI (POST)
-router.post('/', async (req, res) => {
+// ENDPOINT: DODAWANIE NOWEJ DZIAŁKI (POST) - Tylko Admin
+router.post('/', verifyAdmin, async (req, res) => {
     try {
         const { geometriaGeoJSON, powierzchnia, status, przeznaczenie, cena } = req.body;
+
         if (!geometriaGeoJSON || !powierzchnia || !status || !przeznaczenie) {
             return res.status(400).json({ error: 'Błąd walidacji: Brakujące dane.' });
         }
 
         const query = `
-            INSERT INTO Nieruchomosci (wspolrzedne, powierzchnia, status, przeznaczenie, cena)
-            VALUES (ST_SetSRID(ST_GeomFromGeoJSON($1), 4326), $2, $3, $4, $5)
+            INSERT INTO Nieruchomosci (wspolrzedne, powierzchnia, status, przeznaczenie, cena) 
+            VALUES (ST_SetSRID(ST_GeomFromGeoJSON($1), 4326), $2, $3, $4, $5) 
             RETURNING id;
         `;
         const values = [JSON.stringify(geometriaGeoJSON), powierzchnia, status, przeznaczenie, cena || 0];
-        const result = await pool.query(query, values);
 
+        const result = await pool.query(query, values);
         res.status(201).json({ wiadomosc: 'Nieruchomość dodana!', noweId: result.rows[0].id });
     } catch (err) {
         console.error(err.message);
@@ -47,8 +50,30 @@ router.post('/', async (req, res) => {
     }
 });
 
-// ENDPOINT: USUWANIE DZIAŁKI (DELETE)
-router.delete('/:id', async (req, res) => {
+// ENDPOINT: ZMIANA STATUSU DZIAŁKI (PATCH) - Tylko Admin (Nowość Agaty!)
+router.patch('/:id/status', verifyAdmin, async (req, res) => {
+    try {
+        const idDzialki = req.params.id;
+        const { nowyStatus } = req.body;
+
+        if (!nowyStatus) return res.status(400).json({ error: 'Brak nowego statusu.' });
+
+        const query = 'UPDATE Nieruchomosci SET status = $1 WHERE ID = $2 RETURNING id;';
+        const result = await pool.query(query, [nowyStatus, idDzialki]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Nie znaleziono działki.' });
+        }
+
+        res.status(200).json({ wiadomosc: `Status zmieniony na: ${nowyStatus}` });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: 'Wystąpił błąd zmiany statusu.' });
+    }
+});
+
+// ENDPOINT: USUWANIE DZIAŁKI (DELETE) - Tylko Admin
+router.delete('/:id', verifyAdmin, async (req, res) => {
     try {
         const idDzialki = req.params.id;
         const query = 'DELETE FROM Nieruchomosci WHERE ID = $1 RETURNING id;';
@@ -57,6 +82,7 @@ router.delete('/:id', async (req, res) => {
         if (result.rowCount === 0) {
             return res.status(404).json({ error: 'Nie znaleziono działki.' });
         }
+
         res.status(200).json({ wiadomosc: `Działka #${idDzialki} została usunięta.` });
     } catch (err) {
         console.error(err.message);

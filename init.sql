@@ -3,10 +3,10 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- 2. KOD AGATY (Twój): Użytkownicy (Tabela nadrzędna)
 CREATE TABLE Uzytkownicy (
-    id  SERIAL PRIMARY KEY,
-    login  VARCHAR(255) UNIQUE NOT NULL,
-    haslo_hash  VARCHAR(255) NOT NULL,
-    rola  VARCHAR(50) DEFAULT 'Mieszkaniec'
+    id SERIAL PRIMARY KEY,
+    login VARCHAR(255) UNIQUE NOT NULL,
+    haslo_hash VARCHAR(255) NOT NULL,
+    rola VARCHAR(50) DEFAULT 'Mieszkaniec'
 );
 
 -- Skrypt inicjalizujący Admina (hasło: admin123)
@@ -19,77 +19,84 @@ VALUES (
 
 -- 3. KOD BEATY: Nieruchomości
 CREATE TABLE Nieruchomosci (
-    ID  SERIAL PRIMARY KEY,
+    ID SERIAL PRIMARY KEY,
     wspolrzedne GEOMETRY(Polygon, 4326) NOT NULL,
-    powierzchnia  NUMERIC  NOT NULL,
-    status  VARCHAR(50) NOT NULL,
-    przeznaczenie  VARCHAR(100) NOT NULL,
+    powierzchnia NUMERIC NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    przeznaczenie VARCHAR(100) NOT NULL,
     cena NUMERIC(15, 2) DEFAULT 0.00
 );
 
 -- 4. KOD ANI: Umowy
 CREATE TABLE Umowy (
-    id  SERIAL PRIMARY KEY,
-    id_dzialki  INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
-    id_najemcy  INTEGER NOT NULL REFERENCES Uzytkownicy(id) ON DELETE RESTRICT,
-    numer_umowy  VARCHAR(100) UNIQUE NOT NULL,
-    data_rozpoczecia  DATE NOT NULL,
-    data_zakonczenia  DATE NOT NULL,
-    wartosc_czynszu  NUMERIC(12, 2) NOT NULL CHECK (wartosc_czynszu >= 0),
-    status  VARCHAR(50) DEFAULT 'Aktywna' CHECK (status IN ('Aktywna', 'Zakończona', 'Anulowana')),
-    utworzono  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT  check_daty_chronologia  CHECK  (data_zakonczenia > data_rozpoczecia)
+    id SERIAL PRIMARY KEY,
+    id_dzialki INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
+    id_najemcy INTEGER NOT NULL REFERENCES Uzytkownicy(id) ON DELETE RESTRICT,
+    numer_umowy VARCHAR(100) UNIQUE NOT NULL,
+    data_rozpoczecia DATE NOT NULL,
+    data_zakonczenia DATE NOT NULL,
+    wartosc_czynszu NUMERIC(12, 2) NOT NULL CHECK (wartosc_czynszu >= 0),
+    status VARCHAR(50) DEFAULT 'Aktywna' CHECK (status IN ('Aktywna', 'Zakończona', 'Anulowana')),
+    utworzono TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_daty_chronologia CHECK (data_zakonczenia > data_rozpoczecia)
 );
 
 -- 5. KOD MADZI: Dokumenty
 CREATE TABLE dokumenty (
-    id  SERIAL PRIMARY KEY,
-    nazwa  VARCHAR(255) NOT NULL,
-    typ_pliku  VARCHAR(50) DEFAULT 'PDF',
-    obiekt_id  INTEGER NOT NULL,
-    obiekt_typ  VARCHAR(100) NOT NULL,
-    data_dodania  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id SERIAL PRIMARY KEY,
+    nazwa VARCHAR(255) NOT NULL,
+    typ_pliku VARCHAR(50) DEFAULT 'PDF',
+    obiekt_id INTEGER NOT NULL,
+    obiekt_typ VARCHAR(100) NOT NULL,
+    data_dodania TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 6. KOD WERONIKI: Aukcje i Logi Licytacji
 CREATE TABLE Aukcje (
-    id  SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     id_nieruchomosci INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
-    id_wlasciciela  INTEGER REFERENCES Uzytkownicy(id) ON DELETE RESTRICT,
-    tytul  VARCHAR(255) NOT NULL,
-    opis  TEXT NOT NULL,
-    cena_wywolawcza  NUMERIC(12, 2) NOT NULL CHECK (cena_wywolawcza > 0),
-    aktualna_cena  NUMERIC(12, 2) NOT NULL,
-    kwota_wadium  NUMERIC(12, 2) NOT NULL CHECK (kwota_wadium >= 0),
-    data_rozpoczecia  TIMESTAMP WITH TIME ZONE NOT NULL,
-    data_zakonczenia  TIMESTAMP WITH TIME ZONE NOT NULL,
-    status  VARCHAR(50) DEFAULT 'planowana',
-    CONSTRAINT  check_ceny CHECK (aktualna_cena >= cena_wywolawcza),
-    CONSTRAINT  check_daty CHECK (data_zakonczenia > data_rozpoczecia)
+    id_wlasciciela INTEGER REFERENCES Uzytkownicy(id) ON DELETE RESTRICT,
+    tytul VARCHAR(255) NOT NULL,
+    opis TEXT NOT NULL,
+    cena_wywolawcza NUMERIC(12, 2) NOT NULL CHECK (cena_wywolawcza > 0),
+    aktualna_cena NUMERIC(12, 2) NOT NULL,
+    kwota_wadium NUMERIC(12, 2) NOT NULL CHECK (kwota_wadium >= 0),
+    data_rozpoczecia TIMESTAMP WITH TIME ZONE NOT NULL,
+    data_zakonczenia TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR(50) DEFAULT 'planowana',
+    CONSTRAINT check_ceny CHECK (aktualna_cena >= cena_wywolawcza),
+    CONSTRAINT check_daty CHECK (data_zakonczenia > data_rozpoczecia)
 );
 
 CREATE TABLE Licytacje_Log (
-    id  SERIAL PRIMARY KEY,
-    id_aukcji  INTEGER REFERENCES Aukcje(id) ON DELETE CASCADE,
-    id_licytanta  INTEGER REFERENCES Uzytkownicy(id) ON DELETE RESTRICT,
-    kwota_oferowana  NUMERIC(12, 2) NOT NULL,
-    data_zlozenia  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    status_weryfikacji  BOOLEAN DEFAULT TRUE
+    id SERIAL PRIMARY KEY,
+    id_aukcji INTEGER REFERENCES Aukcje(id) ON DELETE CASCADE,
+    id_licytanta INTEGER REFERENCES Uzytkownicy(id) ON DELETE RESTRICT,
+    kwota_oferowana NUMERIC(12, 2) NOT NULL,
+    data_zlozenia TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status_weryfikacji BOOLEAN DEFAULT TRUE
+);
+
+-- 7. KOD AGATY (Integracja): Wnioski o licytację (Wadium)
+CREATE TABLE Wnioski_Wadium (
+    id SERIAL PRIMARY KEY,
+    id_uzytkownika INTEGER REFERENCES Uzytkownicy(id) ON DELETE CASCADE,
+    id_aukcji INTEGER REFERENCES Aukcje(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'Oczekuje',
+    data_zgloszenia TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ==========================================
 -- DANE TESTOWE (Weronika i Beata)
 -- ==========================================
-
 -- Licytant
 INSERT INTO Uzytkownicy (login, haslo_hash, rola)
 VALUES ('licytant@test.pl', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Licytant')
 ON CONFLICT (login) DO NOTHING;
 
--- Działka testowa
-INSERT INTO Nieruchomosci (ID, wspolrzedne, powierzchnia, status, przeznaczenie, cena)
-VALUES (1, ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[19.94,50.06],[19.95,50.06],[19.95,50.05],[19.94,50.05],[19.94,50.06]]]}'), 4326), 1200.00, 'Aktywna licytacja', 'Usługowe', 150000.00)
-ON CONFLICT (ID) DO NOTHING;
+-- Działka testowa (Bez twardego wymuszania ID)
+INSERT INTO Nieruchomosci (wspolrzedne, powierzchnia, status, przeznaczenie, cena)
+VALUES (ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[19.94,50.06],[19.95,50.06],[19.95,50.05],[19.94,50.05],[19.94,50.06]]]}'), 4326), 1200.00, 'Aktywna licytacja', 'Usługowe', 150000.00);
 
 -- Testowa Aukcja
 INSERT INTO Aukcje (id_nieruchomosci, id_wlasciciela, tytul, opis, cena_wywolawcza, aktualna_cena, kwota_wadium, data_rozpoczecia, data_zakonczenia, status)
