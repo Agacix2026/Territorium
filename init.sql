@@ -82,16 +82,3 @@ CREATE TABLE Wnioski_Wadium (
     status VARCHAR(50) DEFAULT 'Oczekuje',
     data_zgloszenia TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
--- ==========================================
--- DANE TESTOWE
--- ==========================================
-INSERT INTO Uzytkownicy (login, haslo_hash, rola)
-VALUES ('licytant@test.pl', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Licytant')
-ON CONFLICT (login) DO NOTHING;
-
-INSERT INTO Nieruchomosci (nazwa, wspolrzedne, powierzchnia, status, przeznaczenie, cena)
-VALUES ('Działka budowlana - ul. Kwiatowa', ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[19.94,50.06],[19.95,50.06],[19.95,50.05],[19.94,50.05],[19.94,50.06]]]}'), 4326), 1200.00, 'Aktywna licytacja', 'Usługowe', 150000.00);
-
-INSERT INTO Aukcje (id_nieruchomosci, id_wlasciciela, tytul, opis, cena_wywolawcza, aktualna_cena, kwota_wadium, data_rozpoczecia, data_zakonczenia, status)
-VALUES (1, 1, 'Aukcja: Działka budowlana - ul. Kwiatowa', 'Licytacja nieruchomości samorządowej', 150000.00, 150000.00, 5000.00, NOW(), NOW() + INTERVAL '7 days', 'aktywna');
