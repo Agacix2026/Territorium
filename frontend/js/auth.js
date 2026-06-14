@@ -5,18 +5,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLoguj = document.getElementById('btnLoguj');
     const btnRejestruj = document.getElementById('btnRejestruj');
 
-    // --- FUNKCJA ZARZĄDZAJĄCA NAWIGACJĄ I WYLOGOWANIEM ---
+    function pokazToasta(wiadomosc, typ = 'primary') {
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '1060';
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toastEl = document.createElement('div');
+        toastEl.className = `toast align-items-center text-bg-${typ} border-0 mb-2`;
+        toastEl.setAttribute('role', 'alert');
+        toastEl.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body"><i class="bi bi-info-circle-fill me-2"></i>${wiadomosc}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        toastContainer.appendChild(toastEl);
+        const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+        toast.show();
+        
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+    }
+
     function zaktualizujNawigacje() {
         const token = localStorage.getItem('jwt_token');
         const userString = localStorage.getItem('user_data');
-
         const navItemLogowanie = document.getElementById('navItemLogowanie');
         const navItemWyloguj = document.getElementById('navItemWyloguj');
+        const navItemAdmin = document.getElementById('navItemAdmin');
         const wylogujUser = document.getElementById('wylogujUser');
         const wylogujBtn = document.getElementById('wylogujBtn');
+
         if (token && userString) {
             const user = JSON.parse(userString);
             if (navItemLogowanie) navItemLogowanie.classList.add('d-none');
+            if (navItemAdmin) {
+                if (user.rola === 'Admin') navItemAdmin.classList.remove('d-none');
+                else navItemAdmin.classList.add('d-none');
+            }
             if (navItemWyloguj) {
                 navItemWyloguj.classList.remove('d-none');
                 if (wylogujUser) wylogujUser.textContent = `(${user.login})`;
@@ -24,20 +53,32 @@ document.addEventListener('DOMContentLoaded', () => {
             if (wylogujBtn) {
                 wylogujBtn.onclick = (e) => {
                     e.preventDefault();
-                    localStorage.removeItem('jwt_token');
-                    localStorage.removeItem('user_data');
-                    window.location.hash = '#logowanie';
-                    window.location.reload();
+                    wylogujBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Wylogowywanie...';
+                    wylogujBtn.classList.add('disabled');
+                    setTimeout(() => {
+                        localStorage.removeItem('jwt_token');
+                        localStorage.removeItem('user_data');
+                        if (loginEmail) loginEmail.value = '';
+                        if (loginHaslo) loginHaslo.value = '';
+                        if (checkObywatel) checkObywatel.checked = false;
+                        
+                        wylogujBtn.innerHTML = '<i class="bi bi-box-arrow-left me-1"></i> Wyloguj';
+                        wylogujBtn.classList.remove('disabled');
+                        zaktualizujNawigacje();
+                        window.location.hash = '#mapa'; 
+                        pokazToasta('Pomyślnie wylogowano z systemu.', 'secondary');
+                    }, 1000);
                 };
             }
         } else {
             if (navItemLogowanie) navItemLogowanie.classList.remove('d-none');
             if (navItemWyloguj) navItemWyloguj.classList.add('d-none');
+            if (navItemAdmin) navItemAdmin.classList.add('d-none');
         }
     }
+
     zaktualizujNawigacje();
 
-    // --- LOGOWANIE ---
     if (btnLoguj) {
         btnLoguj.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -48,18 +89,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 localStorage.setItem('jwt_token', response.token);
                 localStorage.setItem('user_data', JSON.stringify(response.user));
+                
+                pokazToasta(`Zalogowano jako: ${response.user.login}`, 'success');
+                zaktualizujNawigacje();
                 window.location.hash = '#mapa';
-                window.location.reload();
             } catch (err) {
                 alert('Logowanie nie powiodło się: ' + err.message);
             }
         });
     }
 
-    // --- REJESTRACJA ---
     if (btnRejestruj) {
         btnRejestruj.addEventListener('click', async () => {
-            if (!checkObywatel.checked) return alert('Wymagane obywatelstwo RP!');
+            if (!checkObywatel.checked) return alert('Wymagane obywatelstwo RP przy rejestracji!');
             try {
                 await API.request('/uzytkownicy/register', 'POST', {
                     login: loginEmail.value,
@@ -75,22 +117,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- FUNKCJE DLA URZĘDNIKA ---
-
-// Dynamiczne ładowanie wniosków z bazy danych
-window.zaladujWnioskiWadium = async function() {
+// FUNKCJE URZĘDNIKA DO WADIUM
+window.zaladujWnioskiWadium = async function () {
     const tabela = document.getElementById('tabela-wadium-body');
     if (!tabela) return;
-
     try {
         const wnioski = await API.request('/aukcje/wnioski/wadium', 'GET');
         tabela.innerHTML = '';
-
         if (wnioski.length === 0) {
             tabela.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Brak oczekujących wpłat wadium.</td></tr>';
             return;
         }
-
         wnioski.forEach(w => {
             const tr = document.createElement('tr');
             tr.id = `wadium-row-${w.wniosek_id}`;
@@ -113,17 +150,30 @@ window.zaladujWnioskiWadium = async function() {
 };
 
 window.zatwierdzWadium = async function (idUzytkownika, wniosekId) {
-    const potwierdzenie = confirm('Czy na pewno chcesz zatwierdzić wpłatę i nadać temu użytkownikowi prawa Licytanta?');
+    const potwierdzenie = confirm('Czy na pewno chcesz zaksięgować wpłatę i zezwolić na licytację w tej aukcji?');
     if (!potwierdzenie) return;
     try {
-        // Zamiast błędnego fetch na port 3000, używamy API.request na zdefiniowany w configu port
-        await API.request(`/uzytkownicy/${idUzytkownika}/rola`, 'PATCH', { nowaRola: 'Licytant' });
-        
-        // Zmiana statusu wniosku w bazie, żeby zniknął z listy do akceptacji
         await API.request(`/aukcje/wnioski/${wniosekId}/zatwierdz`, 'PATCH', {});
+        // alert(' ✅ Sukces! Wpłata zaksięgowana. Użytkownik ma odblokowaną licytację.');
+        const wiersz = document.getElementById(`wadium-row-${wniosekId}`);
+        if (wiersz) {
+            wiersz.style.transition = "opacity 0.5s";
+            wiersz.style.opacity = "0";
+            setTimeout(() => wiersz.remove(), 500);
+        }
+    } catch (error) { alert(` ❌ Błąd: ${error.message}`); }
+};
 
-        alert(' ✅ Sukces! Obywatel otrzymał status Licytanta i może brać udział w aukcji.');
-
+// NOWOŚĆ: PRAWDZIWE ODRZUCANIE W BAZIE!
+window.odrzucWadium = async function (wniosekId) {
+    const potwierdzenie = confirm('Czy na pewno chcesz odrzucić wniosek o licytację? Użytkownik będzie musiał zgłosić się ponownie.');
+    if (!potwierdzenie) return;
+    
+    try {
+        // Wysyłamy żądanie usunięcia do bazy danych
+        await API.request(`/aukcje/wnioski/${wniosekId}`, 'DELETE', {});
+        
+        // Płynne usunięcie wiersza z ekranu po sukcesie bazy
         const wiersz = document.getElementById(`wadium-row-${wniosekId}`);
         if (wiersz) {
             wiersz.style.transition = "opacity 0.5s";
@@ -131,28 +181,13 @@ window.zatwierdzWadium = async function (idUzytkownika, wniosekId) {
             setTimeout(() => wiersz.remove(), 500);
         }
     } catch (error) {
-        console.error('Błąd połączenia z API:', error);
-        alert(` ❌ Błąd: ${error.message}`);
+        alert(` ❌ Błąd odrzucania wniosku: ${error.message}`);
     }
 };
 
-window.odrzucWadium = function (wniosekId) {
-    const potwierdzenie = confirm('Czy odrzucić wniosek o licytację?');
-    if (potwierdzenie) {
-        // Tu docelowo mógłby być patch odrzucający wniosek na stałe
-        const wiersz = document.getElementById(`wadium-row-${wniosekId}`);
-        if (wiersz) wiersz.remove();
-    }
-};
-
-// Podpięcie ładowania wniosków po wejściu do panelu urzędnika
 window.addEventListener('hashchange', () => {
-    if (window.location.hash === '#panel-urzednika') {
-        window.zaladujWnioskiWadium();
-    }
+    if (window.location.hash === '#panel-urzednika') window.zaladujWnioskiWadium();
 });
 document.addEventListener('DOMContentLoaded', () => {
-    if (window.location.hash === '#panel-urzednika') {
-        window.zaladujWnioskiWadium();
-    }
+    if (window.location.hash === '#panel-urzednika') window.zaladujWnioskiWadium();
 });

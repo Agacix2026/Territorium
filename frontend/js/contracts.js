@@ -1,98 +1,129 @@
-// js/contracts.js - Moduł obsługi umów (Przetłumaczony z React na Vanilla JS)
 document.addEventListener('DOMContentLoaded', () => {
     const formPanel = document.getElementById('formularzUmowyPanel');
     const tableBody = document.getElementById('umowy-table-body-panel');
     const alertError = document.getElementById('umowy-error-alert');
     const alertSuccess = document.getElementById('umowy-success-alert');
-    
-    // Zapobiega błędom, jeśli skrypt załaduje się na stronie bez panelu urzędnika
-    if (!formPanel || !tableBody) return;
 
-    // ZADANIE 2: POBIERANIE DANYCH (GET /api/umowy)
-    async function loadContracts() {
+    if (!tableBody) return;
+
+    // Sprawdzanie uprawnień
+    function isAdmin() {
+        const userString = localStorage.getItem('user_data');
+        if (!userString) return false;
+        try { return JSON.parse(userString).rola === 'Admin'; } catch(e) { return false; }
+    }
+
+    // Dynamiczne pobieranie i rysowanie tabeli
+    window.loadContracts = async function() {
         try {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Ładowanie danych z serwera...</td></tr>';
+            const theadTr = tableBody.parentElement.querySelector('thead tr');
+            const czyAdmin = isAdmin();
+            
+            // Dynamiczny nagłówek: 6 kolumn dla Admina, 5 dla zwykłego użytkownika
+            if (theadTr) {
+                theadTr.innerHTML = `
+                    <th>ID Umowy</th>
+                    <th>Zasób (ID Działki)</th>
+                    <th>Najemca (ID)</th>
+                    <th>Okres Dzierżawy</th>
+                    <th>Wartość Czynszu</th>
+                    ${czyAdmin ? '<th class="text-end">Akcja</th>' : ''}
+                `;
+            }
+
+            tableBody.innerHTML = `<tr><td colspan="${czyAdmin ? 6 : 5}" class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Ładowanie danych...</td></tr>`;
+            
             const umowy = await API.request('/umowy', 'GET');
             
             if (umowy.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Brak zarejestrowanych umów w systemie.</td></tr>';
+                tableBody.innerHTML = `<tr><td colspan="${czyAdmin ? 6 : 5}" class="text-center py-4 text-muted">Brak zarejestrowanych umów w systemie.</td></tr>`;
                 return;
             }
-
+            
             tableBody.innerHTML = '';
+
             umowy.forEach(umowa => {
                 const tr = document.createElement('tr');
                 const dataRozp = new Date(umowa.data_rozpoczecia).toLocaleDateString('pl-PL');
                 const dataZak = new Date(umowa.data_zakonczenia).toLocaleDateString('pl-PL');
                 
+                let actionBtn = '';
+                if (czyAdmin) {
+                    actionBtn = `<td class="text-end"><button class="btn btn-sm btn-outline-danger shadow-sm border-0" onclick="usunUmowe(${umowa.id})" title="Usuń umowę"><i class="bi bi-trash3-fill"></i></button></td>`;
+                }
+
                 tr.innerHTML = `
                     <th scope="row">${umowa.id}</th>
                     <td>Działka #${umowa.id_dzialki}</td>
                     <td>Najemca #${umowa.id_najemcy}</td>
-                    <td>${dataRozp} do ${dataZak}</td>
-                    <td class="fw-bold">${umowa.wartosc_czynszu} PLN</td>
+                    <td>${dataRozp} - ${dataZak}</td>
+                    <td class="fw-bold text-dark">${umowa.wartosc_czynszu} PLN</td>
+                    ${actionBtn}
                 `;
                 tableBody.appendChild(tr);
             });
         } catch (error) {
-            console.error('Błąd pobierania umów:', error);
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Błąd połączenia z bazą.</td></tr>';
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Błąd połączenia z bazą.</td></tr>`;
         }
     }
 
-    // ZADANIE 1 & 3: WYSYŁANIE I WALIDACJA WCAG (POST /api/umowy)
-    formPanel.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        alertError.classList.add('d-none');
-        alertSuccess.classList.add('d-none');
-        alertError.innerHTML = '';
-
-        const idNajemcy = document.getElementById('idNajemcyPanel').value;
-        const idDzialki = document.getElementById('idDzialkiPanel').value;
-        const dataRozp = document.getElementById('dataStartPanel').value;
-        const dataZak = document.getElementById('dataKoniecPanel').value;
-        const czynsz = document.getElementById('czynszPanel').value;
-        
-        // Generujemy losowy numer umowy w JS
-        const numerUmowy = 'UM/' + Math.floor(Math.random() * 10000) + '/2026';
-
-        // Walidacja chronologii dat (Zgodność z WCAG)
-        if (new Date(dataZak) <= new Date(dataRozp)) {
-            alertError.innerHTML = '<strong>Błąd:</strong> Data zakończenia umowy musi być późniejsza niż data rozpoczęcia!';
-            alertError.classList.remove('d-none');
-            alertError.focus(); // Focus dla czytników ekranowych
-            return;
-        }
-
+    // Usuwanie umowy
+    window.usunUmowe = async function(id) {
+        if (!confirm(`Czy na pewno chcesz trwale usunąć umowę #${id}?`)) return;
         try {
-            const btn = document.getElementById('btnZapiszUmowePanel');
-            btn.disabled = true;
-
-            const payload = {
-                id_dzialki: parseInt(idDzialki),
-                id_najemcy: parseInt(idNajemcy),
-                numer_umowy: numerUmowy,
-                data_rozpoczecia: dataRozp,
-                data_zakonczenia: dataZak,
-                wartosc_czynszu: parseFloat(czynsz)
-            };
-
-            await API.request('/umowy', 'POST', payload);
-            
-            alertSuccess.classList.remove('d-none');
-            alertSuccess.textContent = 'Umowa została pomyślnie wygenerowana!';
-            formPanel.reset();
+            await API.request(`/umowy/${id}`, 'DELETE');
             loadContracts(); // Odśwież tabelę
-
         } catch (error) {
-            alertError.innerHTML = `<strong>Błąd serwera:</strong> ${error.message}`;
-            alertError.classList.remove('d-none');
-            alertError.focus();
-        } finally {
-            document.getElementById('btnZapiszUmowePanel').disabled = false;
+            alert('Błąd usuwania umowy: ' + error.message);
+        }
+    };
+
+    // Obsługa formularza panelu urzędnika
+    if (formPanel) {
+        formPanel.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            alertError.classList.add('d-none');
+            alertSuccess.classList.add('d-none');
+            
+            const payload = {
+                id_dzialki: parseInt(document.getElementById('idDzialkiPanel').value),
+                id_najemcy: parseInt(document.getElementById('idNajemcyPanel').value),
+                numer_umowy: 'UM/' + Math.floor(Math.random() * 10000) + '/2026',
+                data_rozpoczecia: document.getElementById('dataStartPanel').value,
+                data_zakonczenia: document.getElementById('dataKoniecPanel').value,
+                wartosc_czynszu: parseFloat(document.getElementById('czynszPanel').value)
+            };
+            
+            if (new Date(payload.data_zakonczenia) <= new Date(payload.data_rozpoczecia)) {
+                alertError.innerHTML = 'Data zakończenia musi być późniejsza niż data rozpoczęcia!';
+                alertError.classList.remove('d-none');
+                return;
+            }
+            
+            try {
+                document.getElementById('btnZapiszUmowePanel').disabled = true;
+                await API.request('/umowy', 'POST', payload);
+                alertSuccess.textContent = 'Umowa została wygenerowana pomyślnie!';
+                alertSuccess.classList.remove('d-none');
+                formPanel.reset();
+                loadContracts();
+            } catch (error) {
+                alertError.innerHTML = `Błąd serwera: ${error.message}`;
+                alertError.classList.remove('d-none');
+            } finally {
+                document.getElementById('btnZapiszUmowePanel').disabled = false;
+            }
+        });
+    }
+
+    // --- KLUCZOWA POPRAWKA: Przebudowuj tabelę przy wejściu w zakładkę ---
+    window.addEventListener('hashchange', () => {
+        if (window.location.hash === '#umowy') {
+            loadContracts();
         }
     });
 
-    // Uruchomienie pobierania przy załadowaniu strony
-    loadContracts();
+    if (window.location.hash === '#umowy' || !window.location.hash) {
+        loadContracts();
+    }
 });

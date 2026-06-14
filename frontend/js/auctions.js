@@ -1,252 +1,112 @@
-/**
- * Moduł Aukcji i Licytacji - Integracja API (Tydzień 6)
- * Autorzy: Weronika + Agata (Poprawki UX, stany oczekiwania i weryfikacja roli Licytanta)
- */
-
-let aktualneAuctionId = parseInt(localStorage.getItem('selected_auction_id')) || 1;
-
-let stanAukcji = {
-    aktualnaCena: 0,
-    uzytkownikZgloszony: false,
-    wadiumOplacone: false
-};
-
-const bidInput = document.getElementById('bid-amount');
-const bidButton = document.getElementById('btn-submit-bid');
-const bidError = document.getElementById('bid-error-msg');
-const btnRegister = document.getElementById('btn-register-auction');
-const btnPayWadium = document.getElementById('btn-pay-wadium');
-const stepRegister = document.getElementById('step-1');
-const stepWadium = document.getElementById('step-2');
-const stepBidForm = document.getElementById('step-3');
-
+// frontend/js/auctions.js - Dynamiczne renderowanie wielu aukcji
 function pobierzDaneSesji() {
     const token = localStorage.getItem('jwt_token');
     const userString = localStorage.getItem('user_data');
     if (!token || !userString) return null;
-    try {
-        return JSON.parse(userString);
-    } catch (e) {
-        console.error('Błąd parsowania danych użytkownika', e);
-        return null;
-    }
+    try { return JSON.parse(userString); } catch (e) { return null; }
 }
 
-function wczytajStanZgloszenia(userId, auctionId) {
-    const klucz = `stan_aukcji_u${userId}_a${auctionId}`;
-    const zapisanyStan = localStorage.getItem(klucz);
-    if (zapisanyStan) {
-        try {
-            const parsed = JSON.parse(zapisanyStan);
-            stanAukcji.uzytkownikZgloszony = parsed.uzytkownikZgloszony || false;
-            stanAukcji.wadiumOplacone = parsed.wadiumOplacone || false;
-        } catch (e) {
-            console.error(e);
-        }
-    } else {
-        stanAukcji.uzytkownikZgloszony = false;
-        stanAukcji.wadiumOplacone = false;
-    }
-}
-
-function zapiszStanZgloszenia(userId, auctionId) {
-    const klucz = `stan_aukcji_u${userId}_a${auctionId}`;
-    localStorage.setItem(klucz, JSON.stringify({
-        uzytkownikZgloszony: stanAukcji.uzytkownikZgloszony,
-        wadiumOplacone: stanAukcji.wadiumOplacone
-    }));
-}
-
-async function pobierzDaneAukcji() {
-    aktualneAuctionId = parseInt(localStorage.getItem('selected_auction_id')) || 1;
+async function pobierzWszystkieAukcje() {
+    const user = pobierzDaneSesji();
+    let url = '/aukcje';
+    if (user) url += `?userId=${user.id}`;
     
     try {
-        const response = await API.request(`/aukcje/${aktualneAuctionId}`, 'GET');
-
-        if (response.success) {
-            const dane = response.data;
-            stanAukcji.aktualnaCena = parseFloat(dane.aktualna_cena);
-
-            if (document.getElementById('auction-title')) {
-                document.getElementById('auction-title').textContent = dane.tytul;
-            }
-            if (document.getElementById('current-price-display')) {
-                document.getElementById('current-price-display').textContent = `${stanAukcji.aktualnaCena.toLocaleString('pl-PL')} PLN`;
-            }
-            if (document.getElementById('wadium-display')) {
-                document.getElementById('wadium-display').textContent = `${parseFloat(dane.kwota_wadium).toLocaleString('pl-PL')} PLN`;
-            }
-
-            updateVisualSteps();
-        }
+        const response = await API.request(url, 'GET');
+        if (response.success) renderAukcje(response.data, user);
     } catch (error) {
-        console.error('Błąd pobierania aukcji:', error);
-        if (document.getElementById('auction-title')) {
-            document.getElementById('auction-title').textContent = `Przedmiot aukcyjny (Zasób #${aktualneAuctionId})`;
-        }
-        updateVisualSteps();
+        document.getElementById('auctions-container').innerHTML = '<div class="alert alert-danger">Błąd pobierania danych.</div>';
     }
 }
 
-function updateVisualSteps() {
-    const user = pobierzDaneSesji();
-    const kontenerAukcji = document.getElementById('aukcje');
-    if (!kontenerAukcji) return;
+function renderAukcje(aukcje, user) {
+    const container = document.getElementById('auctions-container');
+    if (!container) return;
+    container.innerHTML = '';
 
-    // Czyszczenie ewentualnych dynamicznych komunikatów przy każdym odświeżeniu widoku
-    const staryKomunikatGosc = document.getElementById('guest-auth-alert');
-    const staryKomunikatOczekiwanie = document.getElementById('wait-approval-alert');
-    if (staryKomunikatGosc) staryKomunikatGosc.remove();
-    if (staryKomunikatOczekiwanie) staryKomunikatOczekiwanie.remove();
-
-    // 1. BLOKADA DLA NIEZALOGOWANYCH GOŚCI
-    if (!user) {
-        setActiveStep(null); // Ukrywa wszystkie kroki (1, 2 i 3)
-
-        const alertDiv = document.createElement('div');
-        alertDiv.id = 'guest-auth-alert';
-        alertDiv.className = 'alert alert-warning border border-warning shadow-sm p-4 text-center mt-3';
-        alertDiv.innerHTML = `
-            <h5 class="fw-bold text-dark mb-2"><i class="bi bi-shield-lock-fill me-2 text-warning"></i> Wymagane zalogowanie</h5>
-            <p class="text-muted small mb-3">Jako Gość możesz jedynie przeglądać oferty. Aby zgłosić chęć licytacji, opłacić wadium i brać czynny udział, musisz potwierdzić tożsamość obywatela RP.</p>
-            <a href="#logowanie" class="btn btn-primary btn-sm px-4 fw-medium"><i class="bi bi-box-arrow-in-right me-1"></i> Zaloguj się teraz</a>
-        `;
-        const govCard = kontenerAukcji.querySelector('.gov-card');
-        if (govCard) govCard.appendChild(alertDiv);
+    if (aukcje.length === 0) {
+        container.innerHTML = '<div class="col-12"><div class="alert alert-info shadow-sm p-4 text-center"><i class="bi bi-info-circle fs-4 d-block mb-2 text-info"></i>Aktualnie nie ma żadnych nieruchomości wystawionych na licytację.</div></div>';
         return;
     }
 
-    wczytajStanZgloszenia(user.id, aktualneAuctionId);
+    aukcje.forEach(aukcja => {
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-6 mb-4';
 
-    // 2. SKRÓT UPRAWNIEŃ DLA PEŁNOPRAWNEGO LICYTANTA
-    if (user.rola === 'Licytant' || user.rola === 'Admin') {
-        stanAukcji.uzytkownikZgloszony = true;
-        stanAukcji.wadiumOplacone = true;
-    }
+        let actionHtml = '';
 
-    // 3. STEROWANIE WIDOCZNOŚCIĄ KROKÓW
-    if (!stanAukcji.uzytkownikZgloszony) {
-        setActiveStep(stepRegister);
-    } else if (!stanAukcji.wadiumOplacone) {
-        setActiveStep(stepWadium);
-    } else if (user.rola !== 'Licytant' && user.rola !== 'Admin') {
-        // --- NOWOŚĆ: STAN OCZEKIWANIA NA URZĘDNIKA ---
-        setActiveStep(null); // Ukrywamy formularz licytacji (krok 3), bo nie ma roli!
-        
-        const alertDiv = document.createElement('div');
-        alertDiv.id = 'wait-approval-alert';
-        alertDiv.className = 'alert alert-info border border-info shadow-sm p-4 text-center mt-3';
-        alertDiv.innerHTML = `
-            <h5 class="fw-bold text-dark mb-2"><i class="bi bi-hourglass-split me-2 text-info"></i> Oczekiwanie na zaksięgowanie wpłaty</h5>
-            <p class="text-muted small mb-0">Twoja wpłata została zarejestrowana i oczekuje na weryfikację przez Urząd. Gdy Urzędnik zatwierdzi wadium, Twoje uprawnienia zmienią się na <strong>Licytanta</strong> i automatycznie odblokujemy dla Ciebie panel licytacji.</p>
-            <button class="btn btn-outline-info btn-sm mt-3" onclick="window.location.reload()"><i class="bi bi-arrow-clockwise me-1"></i> Odśwież status</button>
+        if (!user) {
+            actionHtml = `<div class="alert alert-warning small mb-0 text-center"><i class="bi bi-shield-lock-fill text-warning me-1"></i> Zaloguj się, aby brać udział w aukcji.</div>`;
+        } else if (user.rola === 'Admin') {
+            actionHtml = `<div class="alert alert-secondary small mb-0 text-center">Konto Urzędnika nie może licytować.</div>`;
+        } else {
+            const status = aukcja.wadium_status || 'Brak';
+            if (status === 'Brak') {
+                actionHtml = `
+                    <div class="d-grid">
+                        <button class="btn btn-primary" onclick="zglosWadium(${aukcja.id}, ${user.id})">
+                            <i class="bi bi-cash-coin me-1"></i> Opłać wadium (${parseFloat(aukcja.kwota_wadium).toLocaleString('pl-PL')} PLN)
+                        </button>
+                    </div>`;
+            } else if (status === 'Oczekuje') {
+                actionHtml = `<div class="alert alert-info small mb-0 text-center"><i class="bi bi-hourglass-split text-info me-1"></i> Oczekuje na zaksięgowanie wadium przez Urząd.</div>`;
+            } else if (status === 'Zatwierdzone' || user.rola === 'Licytant') {
+                actionHtml = `
+                    <form class="p-3 bg-light rounded border border-success" onsubmit="licytuj(event, ${aukcja.id}, ${aukcja.aktualna_cena})">
+                        <label class="form-label small fw-bold text-success mb-1"><i class="bi bi-unlock-fill me-1"></i>Panel Licytacji Odblokowany!</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="bid-input-${aukcja.id}" min="${parseFloat(aukcja.aktualna_cena) + 1}" placeholder="Min: ${parseFloat(aukcja.aktualna_cena) + 1}" required>
+                            <button class="btn btn-success fw-bold" type="submit">Licytuj</button>
+                        </div>
+                    </form>`;
+            }
+        }
+
+        col.innerHTML = `
+            <div class="gov-card h-100 bg-white shadow-sm d-flex flex-column" style="border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.5rem;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="fw-bold text-primary mb-0">${aukcja.tytul}</h5>
+                    <span class="badge bg-warning text-dark"><i class="bi bi-hammer me-1"></i>Aktywna</span>
+                </div>
+                <p class="small text-muted flex-grow-1">${aukcja.opis}</p>
+                <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded border">
+                    <div>
+                        <span class="d-block small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Aktualna cena</span>
+                        <span class="fs-4 fw-bold text-dark">${parseFloat(aukcja.aktualna_cena).toLocaleString('pl-PL')} <span class="fs-6 text-muted fw-normal">PLN</span></span>
+                    </div>
+                    <div class="text-end">
+                        <span class="d-block small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Wymagane wadium</span>
+                        <span class="fw-medium text-dark">${parseFloat(aukcja.kwota_wadium).toLocaleString('pl-PL')} PLN</span>
+                    </div>
+                </div>
+                ${actionHtml}
+            </div>
         `;
-        const govCard = kontenerAukcji.querySelector('.gov-card');
-        if (govCard) govCard.appendChild(alertDiv);
-    } else {
-        // Ma rolę i opłacił wadium - pokazujemy licytację
-        setActiveStep(stepBidForm);
-    }
-}
-
-function setActiveStep(activeSection) {
-    [stepRegister, stepWadium, stepBidForm].forEach((section) => {
-        if (section) section.classList.add('hidden', 'd-none');
-    });
-    if (activeSection) activeSection.classList.remove('hidden', 'd-none');
-}
-
-function validateBidAmount() {
-    if (!bidInput) return;
-    const enteredAmount = parseFloat(bidInput.value);
-    if (isNaN(enteredAmount) || enteredAmount <= stanAukcji.aktualnaCena) {
-        if (bidButton) bidButton.disabled = true;
-        if (bidError) bidError.textContent = `Kwota musi być większa niż ${stanAukcji.aktualnaCena.toLocaleString('pl-PL')} PLN.`;
-        bidInput.classList.add('input-error');
-    } else {
-        if (bidButton) bidButton.disabled = false;
-        if (bidError) bidError.textContent = '';
-        bidInput.classList.remove('input-error');
-    }
-}
-
-if (btnRegister) {
-    btnRegister.onclick = function() {
-        const user = pobierzDaneSesji();
-        if (!user) return;
-        
-        stanAukcji.uzytkownikZgloszony = true;
-        zapiszStanZgloszenia(user.id, aktualneAuctionId);
-        updateVisualSteps();
-    };
-}
-
-if (btnPayWadium) {
-    btnPayWadium.onclick = async function() {
-        const user = pobierzDaneSesji();
-        if (!user) return;
-
-        btnPayWadium.textContent = 'Przetwarzanie płatności wadium...';
-        btnPayWadium.disabled = true;
-        
-        try {
-            // WYSYŁKA DO BACKENDU ABY ADMIN TO ZOBACZYŁ W PANELU!
-            await API.request(`/aukcje/${aktualneAuctionId}/zglos-wadium`, 'POST', { id_uzytkownika: user.id });
-
-            stanAukcji.wadiumOplacone = true;
-            zapiszStanZgloszenia(user.id, aktualneAuctionId);
-            updateVisualSteps();
-        } catch (error) {
-            alert('Wystąpił błąd podczas rejestracji wadium: ' + error.message);
-        } finally {
-            btnPayWadium.textContent = 'Opłać wadium online';
-            btnPayWadium.disabled = false;
-        }
-    };
-}
-
-if (bidInput) {
-    bidInput.addEventListener('input', validateBidAmount);
-}
-
-const bidForm = document.getElementById('auction-bid-form');
-if (bidForm) {
-    bidForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const user = pobierzDaneSesji();
-        const finalAmount = parseFloat(bidInput.value);
-        if (finalAmount <= stanAukcji.aktualnaCena) return;
-        
-        try {
-            const response = await API.request(`/aukcje/${aktualneAuctionId}/bid`, 'POST', {
-                id_licytanta: user ? user.id : 1,
-                kwota_oferowana: finalAmount
-            });
-            if (response.success) {
-                alert('Gratulacje! Twoja oferta została pomyślnie zapisana.');
-                bidInput.value = '';
-                if (bidButton) bidButton.disabled = true;
-                await pobierzDaneAukcji();
-            }
-        } catch (error) {
-            // Bezpiecznik: Gdyby ktoś "zhackował" frontend i odkrył formularz, dostanie ładny komunikat
-            if (bidError) {
-                bidError.textContent = error.message.includes('403') 
-                    ? 'Nie posiadasz jeszcze roli licytanta. Wymagana akceptacja urzędu.' 
-                    : error.message;
-            }
-        }
+        container.appendChild(col);
     });
 }
 
-window.addEventListener('hashchange', () => {
-    if (window.location.hash === '#aukcje') {
-        pobierzDaneAukcji();
-    }
-});
+window.zglosWadium = async function(aukcjaId, userId) {
+    if(!confirm('Zaraz zostaniesz przekierowany do systemu płatności wadium. Kontynuować?')) return;
+    try {
+        await API.request(`/aukcje/${aukcjaId}/zglos-wadium`, 'POST', { id_uzytkownika: userId });
+        alert('Wniosek i wpłata wadium zostały zarejestrowane. Czekaj na weryfikację urzędu (Administrator musi zatwierdzić wpłatę w panelu).');
+        pobierzWszystkieAukcje();
+    } catch(e) { alert('Błąd: ' + e.message); }
+};
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.location.hash === '#aukcje' || !window.location.hash) {
-        pobierzDaneAukcji();
-    }
-});
+window.licytuj = async function(event, aukcjaId, aktualnaCena) {
+    event.preventDefault();
+    const input = document.getElementById(`bid-input-${aukcjaId}`);
+    const kwota = parseFloat(input.value);
+    const user = pobierzDaneSesji();
+
+    if(kwota <= aktualnaCena) { alert('Twoja oferta musi być wyższa niż aktualna cena rynkowa!'); return; }
+    try {
+        const res = await API.request(`/aukcje/${aukcjaId}/bid`, 'POST', { id_licytanta: user.id, kwota_oferowana: kwota });
+        if(res.success) { alert('Gratulacje! Twoja oferta została złożona poprawnie.'); pobierzWszystkieAukcje(); }
+    } catch(e) { alert('Błąd odrzucenia oferty: ' + e.message); }
+};
+
+window.addEventListener('hashchange', () => { if (window.location.hash === '#aukcje') pobierzWszystkieAukcje(); });
+document.addEventListener('DOMContentLoaded', () => { if (window.location.hash === '#aukcje' || !window.location.hash) pobierzWszystkieAukcje(); });

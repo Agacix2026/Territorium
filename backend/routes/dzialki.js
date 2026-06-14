@@ -1,92 +1,71 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { verifyAdmin } = require('../middleware/auth'); // Zabezpieczenie dla Admina
+const { verifyAdmin } = require('../middleware/auth');
 
-// ENDPOINT: POBIERANIE DZIAŁEK (GET) - Publiczny
 router.get('/', async (req, res) => {
     try {
         const query = `
-            SELECT 
-                n.ID, 
-                n.powierzchnia, 
-                n.status, 
-                n.przeznaczenie, 
-                n.cena, 
-                ST_AsGeoJSON(n.wspolrzedne)::json AS wspolrzedne 
-            FROM Nieruchomosci n
-            LEFT JOIN Aukcje a ON n.ID = a.id_nieruchomosci
-            ORDER BY n.ID ASC;
+            SELECT ID, nazwa, powierzchnia, status, przeznaczenie, cena, ST_AsGeoJSON(wspolrzedne)::json AS wspolrzedne 
+            FROM Nieruchomosci ORDER BY ID ASC;
         `;
         const result = await pool.query(query);
         res.status(200).json(result.rows);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Wystąpił błąd podczas pobierania danych.' });
+        res.status(500).json({ error: 'Błąd pobierania działek.' });
     }
 });
 
-// ENDPOINT: DODAWANIE NOWEJ DZIAŁKI (POST) - Tylko Admin
 router.post('/', verifyAdmin, async (req, res) => {
     try {
-        const { geometriaGeoJSON, powierzchnia, status, przeznaczenie, cena } = req.body;
-
-        if (!geometriaGeoJSON || !powierzchnia || !status || !przeznaczenie) {
-            return res.status(400).json({ error: 'Błąd walidacji: Brakujące dane.' });
-        }
-
+        const { nazwa, geometriaGeoJSON, powierzchnia, status, przeznaczenie, cena } = req.body;
         const query = `
-            INSERT INTO Nieruchomosci (wspolrzedne, powierzchnia, status, przeznaczenie, cena) 
-            VALUES (ST_SetSRID(ST_GeomFromGeoJSON($1), 4326), $2, $3, $4, $5) 
-            RETURNING id;
+            INSERT INTO Nieruchomosci (nazwa, wspolrzedne, powierzchnia, status, przeznaczenie, cena) 
+            VALUES ($1, ST_SetSRID(ST_GeomFromGeoJSON($2), 4326), $3, $4, $5, $6) RETURNING id;
         `;
-        const values = [JSON.stringify(geometriaGeoJSON), powierzchnia, status, przeznaczenie, cena || 0];
-
-        const result = await pool.query(query, values);
-        res.status(201).json({ wiadomosc: 'Nieruchomość dodana!', noweId: result.rows[0].id });
+        const result = await pool.query(query, [nazwa || 'Nowa Działka', JSON.stringify(geometriaGeoJSON), powierzchnia, status, przeznaczenie, cena || 0]);
+        res.status(201).json({ wiadomosc: 'Działka dodana!', noweId: result.rows[0].id });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Błąd podczas dodawania działki.' });
+        res.status(500).json({ error: 'Błąd zapisu: ' + err.message });
     }
 });
 
-// ENDPOINT: ZMIANA STATUSU DZIAŁKI (PATCH) - Tylko Admin (Nowość Agaty!)
+// ZMIANA STATUSU (Automatyczne otwieranie/zamykanie aukcji!)
 router.patch('/:id/status', verifyAdmin, async (req, res) => {
     try {
         const idDzialki = req.params.id;
-        const { nowyStatus } = req.body;
-
-        if (!nowyStatus) return res.status(400).json({ error: 'Brak nowego statusu.' });
-
-        const query = 'UPDATE Nieruchomosci SET status = $1 WHERE ID = $2 RETURNING id;';
-        const result = await pool.query(query, [nowyStatus, idDzialki]);
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Nie znaleziono działki.' });
+        const nowyStatus = req.body.nowyStatus;
+        
+        await pool.query('UPDATE Nieruchomosci SET status = $1 WHERE ID = $2', [nowyStatus, idDzialki]);
+        
+        if (nowyStatus === 'Aktywna licytacja') {
+            const checkAukcja = await pool.query("SELECT id FROM Aukcje WHERE id_nieruchomosci = $1 AND status = 'aktywna'", [idDzialki]);
+            if (checkAukcja.rows.length === 0) {
+                const dzialka = await pool.query('SELECT cena, nazwa FROM Nieruchomosci WHERE ID = $1', [idDzialki]);
+                const cena = dzialka.rows[0].cena || 0;
+                const nazwa = dzialka.rows[0].nazwa || `Zasób N/${idDzialki}`;
+                await pool.query(
+                    `INSERT INTO Aukcje (id_nieruchomosci, tytul, opis, cena_wywolawcza, aktualna_cena, kwota_wadium, data_rozpoczecia, data_zakonczenia, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW() + INTERVAL '7 days', 'aktywna')`,
+                    [idDzialki, `Aukcja: ${nazwa}`, 'Licytacja nieruchomości z zasobu samorządu.', cena, cena, cena * 0.05]
+                );
+            }
+        } else {
+            await pool.query("UPDATE Aukcje SET status = 'zakończona' WHERE id_nieruchomosci = $1", [idDzialki]);
         }
-
-        res.status(200).json({ wiadomosc: `Status zmieniony na: ${nowyStatus}` });
+        
+        res.status(200).json({ wiadomosc: 'Status zaktualizowany' });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Wystąpił błąd zmiany statusu.' });
+        res.status(500).json({ error: 'Błąd zmiany statusu.' });
     }
 });
 
-// ENDPOINT: USUWANIE DZIAŁKI (DELETE) - Tylko Admin
 router.delete('/:id', verifyAdmin, async (req, res) => {
     try {
-        const idDzialki = req.params.id;
-        const query = 'DELETE FROM Nieruchomosci WHERE ID = $1 RETURNING id;';
-        const result = await pool.query(query, [idDzialki]);
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Nie znaleziono działki.' });
-        }
-
-        res.status(200).json({ wiadomosc: `Działka #${idDzialki} została usunięta.` });
+        await pool.query('DELETE FROM Nieruchomosci WHERE ID = $1', [req.params.id]);
+        res.status(200).json({ wiadomosc: 'Usunięto.' });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Wystąpił błąd usuwania.' });
+        res.status(500).json({ error: 'Błąd usuwania.' });
     }
 });
 

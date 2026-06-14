@@ -1,7 +1,7 @@
--- 1. KOD BEATY: Rozszerzenie PostGIS
+-- 1. ROZSZERZENIE POSTGIS
 CREATE EXTENSION IF NOT EXISTS postgis;
 
--- 2. KOD AGATY (Twój): Użytkownicy (Tabela nadrzędna)
+-- 2. UŻYTKOWNICY
 CREATE TABLE Uzytkownicy (
     id SERIAL PRIMARY KEY,
     login VARCHAR(255) UNIQUE NOT NULL,
@@ -9,17 +9,14 @@ CREATE TABLE Uzytkownicy (
     rola VARCHAR(50) DEFAULT 'Mieszkaniec'
 );
 
--- Skrypt inicjalizujący Admina (hasło: admin123)
 INSERT INTO Uzytkownicy (login, haslo_hash, rola)
-VALUES (
-    'admin@urzad.pl',
-    '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
-    'Admin'
-) ON CONFLICT (login) DO UPDATE SET rola = 'Admin';
+VALUES ('admin@urzad.pl', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Admin')
+ON CONFLICT (login) DO UPDATE SET rola = 'Admin';
 
--- 3. KOD BEATY: Nieruchomości
+-- 3. NIERUCHOMOŚCI
 CREATE TABLE Nieruchomosci (
     ID SERIAL PRIMARY KEY,
+    nazwa VARCHAR(255) DEFAULT 'Działka bez nazwy',
     wspolrzedne GEOMETRY(Polygon, 4326) NOT NULL,
     powierzchnia NUMERIC NOT NULL,
     status VARCHAR(50) NOT NULL,
@@ -27,7 +24,7 @@ CREATE TABLE Nieruchomosci (
     cena NUMERIC(15, 2) DEFAULT 0.00
 );
 
--- 4. KOD ANI: Umowy
+-- 4. UMOWY
 CREATE TABLE Umowy (
     id SERIAL PRIMARY KEY,
     id_dzialki INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
@@ -41,7 +38,7 @@ CREATE TABLE Umowy (
     CONSTRAINT check_daty_chronologia CHECK (data_zakonczenia > data_rozpoczecia)
 );
 
--- 5. KOD MADZI: Dokumenty
+-- 5. DOKUMENTY
 CREATE TABLE dokumenty (
     id SERIAL PRIMARY KEY,
     nazwa VARCHAR(255) NOT NULL,
@@ -51,7 +48,7 @@ CREATE TABLE dokumenty (
     data_dodania TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. KOD WERONIKI: Aukcje i Logi Licytacji
+-- 6. AUKCJE
 CREATE TABLE Aukcje (
     id SERIAL PRIMARY KEY,
     id_nieruchomosci INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
@@ -63,7 +60,7 @@ CREATE TABLE Aukcje (
     kwota_wadium NUMERIC(12, 2) NOT NULL CHECK (kwota_wadium >= 0),
     data_rozpoczecia TIMESTAMP WITH TIME ZONE NOT NULL,
     data_zakonczenia TIMESTAMP WITH TIME ZONE NOT NULL,
-    status VARCHAR(50) DEFAULT 'planowana',
+    status VARCHAR(50) DEFAULT 'aktywna',
     CONSTRAINT check_ceny CHECK (aktualna_cena >= cena_wywolawcza),
     CONSTRAINT check_daty CHECK (data_zakonczenia > data_rozpoczecia)
 );
@@ -77,7 +74,7 @@ CREATE TABLE Licytacje_Log (
     status_weryfikacji BOOLEAN DEFAULT TRUE
 );
 
--- 7. KOD AGATY (Integracja): Wnioski o licytację (Wadium)
+-- 7. WNIOSKI WADIUM
 CREATE TABLE Wnioski_Wadium (
     id SERIAL PRIMARY KEY,
     id_uzytkownika INTEGER REFERENCES Uzytkownicy(id) ON DELETE CASCADE,
@@ -87,17 +84,14 @@ CREATE TABLE Wnioski_Wadium (
 );
 
 -- ==========================================
--- DANE TESTOWE (Weronika i Beata)
+-- DANE TESTOWE
 -- ==========================================
--- Licytant
 INSERT INTO Uzytkownicy (login, haslo_hash, rola)
 VALUES ('licytant@test.pl', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Licytant')
 ON CONFLICT (login) DO NOTHING;
 
--- Działka testowa (Bez twardego wymuszania ID)
-INSERT INTO Nieruchomosci (wspolrzedne, powierzchnia, status, przeznaczenie, cena)
-VALUES (ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[19.94,50.06],[19.95,50.06],[19.95,50.05],[19.94,50.05],[19.94,50.06]]]}'), 4326), 1200.00, 'Aktywna licytacja', 'Usługowe', 150000.00);
+INSERT INTO Nieruchomosci (nazwa, wspolrzedne, powierzchnia, status, przeznaczenie, cena)
+VALUES ('Działka budowlana - ul. Kwiatowa', ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[19.94,50.06],[19.95,50.06],[19.95,50.05],[19.94,50.05],[19.94,50.06]]]}'), 4326), 1200.00, 'Aktywna licytacja', 'Usługowe', 150000.00);
 
--- Testowa Aukcja
 INSERT INTO Aukcje (id_nieruchomosci, id_wlasciciela, tytul, opis, cena_wywolawcza, aktualna_cena, kwota_wadium, data_rozpoczecia, data_zakonczenia, status)
-VALUES (1, 1, 'Działka budowlana - ul. Kwiatowa, Ostrołęka', 'Piękna nieruchomość gruntowa mienia samorządowego.', 150000.00, 150000.00, 5000.00, NOW(), NOW() + INTERVAL '7 days', 'aktywna');
+VALUES (1, 1, 'Aukcja: Działka budowlana - ul. Kwiatowa', 'Licytacja nieruchomości samorządowej', 150000.00, 150000.00, 5000.00, NOW(), NOW() + INTERVAL '7 days', 'aktywna');
