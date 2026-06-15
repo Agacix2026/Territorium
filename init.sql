@@ -38,10 +38,11 @@ CREATE TABLE Umowy (
     CONSTRAINT check_daty_chronologia CHECK (data_zakonczenia > data_rozpoczecia)
 );
 
--- 5. DOKUMENTY
+-- 5. DOKUMENTY (ZMODYFIKOWANE - DODANO POLE url)
 CREATE TABLE dokumenty (
     id SERIAL PRIMARY KEY,
     nazwa VARCHAR(255) NOT NULL,
+    url VARCHAR(2048) NOT NULL,
     typ_pliku VARCHAR(50) DEFAULT 'PDF',
     obiekt_id INTEGER NOT NULL,
     obiekt_typ VARCHAR(100) NOT NULL,

@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <th style="width: 80px;">ID</th>
                     <th>Nazwa Dokumentu i Powiązanie</th>
                     <th style="width: 150px;">Format</th>
-                    ${czyAdmin ? '<th style="width: 200px;" class="text-end">Akcja</th>' : ''}
+                    ${czyAdmin ? '<th style="width: 150px;" class="text-end">Akcja</th>' : ''}
                 `;
             }
 
@@ -35,13 +35,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             docs.forEach(doc => {
                 const tr = document.createElement('tr');
+                
                 let actionButtonsCell = '';
                 if (czyAdmin) {
                     actionButtonsCell = `
                         <td class="text-end text-nowrap">
-                            <button class="btn btn-sm btn-outline-primary shadow-sm border-0" onclick="pokazPowiadomienie('Pobieranie pliku PDF zostało rozpoczęte.', 'primary')">
-                                <i class="bi bi-download"></i> Pobierz
-                            </button>
+                            <a href="${doc.url || '#'}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm border-0" title="Otwórz link">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
                             <button class="btn btn-sm btn-outline-danger shadow-sm border-0 ms-1" onclick="usunDokument(${doc.id}, '${doc.nazwa}')" title="Usuń trwale">
                                 <i class="bi bi-trash3-fill"></i>
                             </button>
@@ -49,10 +50,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
 
+                const linkDoDokumentu = doc.url 
+                    ? `<a href="${doc.url}" target="_blank" class="text-decoration-none fw-bold text-primary">${doc.nazwa} <i class="bi bi-link-45deg"></i></a>` 
+                    : `<span class="fw-bold">${doc.nazwa}</span>`;
+
+                // Dynamiczne ikony i kolory w zależności od formatu
+                let badgeColor = 'bg-secondary';
+                let iconClass = 'bi-file-earmark';
+                
+                if (doc.typ_pliku === 'PDF') { badgeColor = 'bg-danger'; iconClass = 'bi-file-earmark-pdf'; }
+                else if (doc.typ_pliku === 'DOCX') { badgeColor = 'bg-primary'; iconClass = 'bi-file-earmark-word'; }
+                else if (doc.typ_pliku === 'XLSX') { badgeColor = 'bg-success'; iconClass = 'bi-file-earmark-excel'; }
+                else if (doc.typ_pliku === 'JPG') { badgeColor = 'bg-warning text-dark'; iconClass = 'bi-file-earmark-image'; }
+
                 tr.innerHTML = `
-                    <td class="fw-bold">${doc.id}</td>
-                    <td>${doc.nazwa} <br><small class="text-muted">(Powiązanie: ${doc.obiekt_typ.toUpperCase()} #${doc.obiekt_id})</small></td>
-                    <td><span class="badge bg-danger"><i class="bi bi-file-earmark-pdf me-1"></i>${doc.typ_pliku}</span></td>
+                    <td>${doc.id}</td>
+                    <td>${linkDoDokumentu} <br><small class="text-muted">(Powiązanie: ${doc.obiekt_typ.toUpperCase()} #${doc.obiekt_id})</small></td>
+                    <td><span class="badge ${badgeColor}"><i class="bi ${iconClass} me-1"></i>${doc.typ_pliku}</span></td>
                     ${actionButtonsCell}
                 `;
                 documentsTableBody.appendChild(tr);
@@ -77,11 +91,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addDocumentBtnUrzednik) {
         addDocumentBtnUrzednik.addEventListener("click", async () => {
             const nazwa = document.getElementById('documentNameUrzednik').value;
+            const url = document.getElementById('documentUrlUrzednik').value;
+            const typPliku = document.getElementById('documentFileTypeUrzednik').value; // Pobieramy wartość z selecta
             const obiektId = document.getElementById('documentObiektIdUrzednik').value;
             const obiektTyp = document.getElementById('documentObiektTypUrzednik').value;
 
-            if (!nazwa || !obiektId) {
-                return pokazPowiadomienie('Wypełnij nazwę dokumentu oraz ID powiązanego zasobu!', 'warning');
+            if (!nazwa || !url || !obiektId) {
+                return pokazPowiadomienie('Wypełnij nazwę, adres URL oraz ID powiązanego zasobu!', 'warning');
             }
 
             try {
@@ -90,12 +106,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 await API.request('/dokumenty', 'POST', {
                     nazwa: nazwa,
-                    typ_pliku: 'PDF',
+                    url: url,
+                    typ_pliku: typPliku, // Wysyłamy wybrany format do bazy
                     obiekt_id: parseInt(obiektId),
                     obiekt_typ: obiektTyp
                 });
 
-                pokazPowiadomienie('Dokument zapisany w bazie PostgreSQL.', 'success');
+                pokazPowiadomienie('Dokument i link zapisane w bazie PostgreSQL.', 'success');
                 document.getElementById('formularzDokumentuUrzednik').reset();
                 loadDocuments(); 
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Territorium GovTech - Portal Zarządzania Mieniem Publicznym</title>
+    <!-- PRZYWRÓCONE LOGO (Favicon) -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏛️</text></svg>">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -302,19 +303,32 @@
                 <h4 class="fw-bold text-dark mb-3"><i class="bi bi-file-earmark-arrow-up text-danger me-2"></i>Dodaj Nowy Dokument Techniczny</h4>
                 <form id="formularzDokumentuUrzednik" class="bg-light p-3 rounded border">
                     <div class="row g-3 align-items-end">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="documentNameUrzednik" class="form-label small fw-bold">Nazwa dokumentu</label>
                             <input type="text" class="form-control form-control-sm" id="documentNameUrzednik" placeholder="np. Wycena działki" required>
                         </div>
-                        <div class="col-md-4">
-                            <label for="documentObiektIdUrzednik" class="form-label small fw-bold">ID powiązanego zasobu</label>
-                            <input type="number" class="form-control form-control-sm" id="documentObiektIdUrzednik" placeholder="np. 1, 2" required>
+                        <div class="col-md-2">
+                            <label for="documentFileTypeUrzednik" class="form-label small fw-bold">Format</label>
+                            <select class="form-select form-select-sm" id="documentFileTypeUrzednik" required>
+                                <option value="PDF">PDF</option>
+                                <option value="DOCX">Word</option>
+                                <option value="XLSX">Excel</option>
+                                <option value="JPG">Zdjęcie</option>
+                            </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label for="documentUrlUrzednik" class="form-label small fw-bold">Adres URL (Link z Dysku)</label>
+                            <input type="url" class="form-control form-control-sm" id="documentUrlUrzednik" placeholder="https://..." required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="documentObiektIdUrzednik" class="form-label small fw-bold">ID zasobu</label>
+                            <input type="number" class="form-control form-control-sm" id="documentObiektIdUrzednik" placeholder="np. 1" required>
+                        </div>
+                        <div class="col-md-2">
                             <label for="documentObiektTypUrzednik" class="form-label small fw-bold">Typ struktury</label>
                             <select class="form-select form-select-sm" id="documentObiektTypUrzednik" required>
-                                <option value="dzialka">Działka gruntu</option>
-                                <option value="budynek">Budynek mienia</option>
+                                <option value="dzialka">Działka</option>
+                                <option value="budynek">Budynek</option>
                             </select>
                         </div>
                         <div class="col-12 mt-3 text-end">
