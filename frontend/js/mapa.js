@@ -1,5 +1,6 @@
 const map = L.map('gisMapContainer').setView([50.061, 19.937], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+
 let leafletGeoJsonLayer = null;
 const plotListContainer = document.getElementById('plotListContainer');
 
@@ -44,7 +45,6 @@ function renderujDzialki(daneZ_API) {
     };
 
     if (leafletGeoJsonLayer) map.removeLayer(leafletGeoJsonLayer);
-
     leafletGeoJsonLayer = L.geoJSON(geoJsonData, {
         style: function (feature) {
             const kolorBootstrap = pobierzKolor(feature.properties.typ);
@@ -65,7 +65,7 @@ function renderujDzialki(daneZ_API) {
         const dzialka = feature.properties;
         const kolor = pobierzKolor(dzialka.typ);
         const czyLicytacja = (dzialka.status === 'Aktywna licytacja');
-
+        
         const karta = document.createElement('button');
         karta.type = 'button';
         karta.className = `plot-list-card d-flex gap-3 align-items-center w-100 border-0 bg-white p-3 mb-2 shadow-sm rounded ${czyLicytacja ? 'border border-warning' : ''}`;
@@ -84,10 +84,10 @@ function renderujDzialki(daneZ_API) {
 
         if (adminTableBody) {
             const tr = document.createElement('tr');
-            let statusBtn = czyLicytacja 
+            let statusBtn = czyLicytacja
                 ? `<button class="btn btn-sm btn-outline-secondary me-1" onclick="zmienStatusDzialki(${dzialka.id}, 'Dostępna')" title="Wycofaj z licytacji"><i class="bi bi-arrow-down-circle"></i></button>`
                 : `<button class="btn btn-sm btn-outline-warning me-1" onclick="zmienStatusDzialki(${dzialka.id}, 'Aktywna licytacja')" title="Wystaw na licytację"><i class="bi bi-hammer text-dark"></i></button>`;
-
+            
             tr.innerHTML = `
                 <td class="fw-bold">${dzialka.numer}</td>
                 <td><code class="small text-muted">POLYGON</code></td>
@@ -100,7 +100,6 @@ function renderujDzialki(daneZ_API) {
             adminTableBody.appendChild(tr);
         }
     });
-
     uruchomFiltrowanie();
 }
 
@@ -135,11 +134,11 @@ function otworzSzczegoly(dzialka) {
     document.getElementById('modalPricePlot').textContent = dzialka.cena;
     document.getElementById('modalStatusPlot').textContent = dzialka.status;
     document.getElementById('copyTargetNum').textContent = dzialka.numer;
-    
+
     const actionBtn = document.getElementById('modalActionBtn');
     if (dzialka.status === 'Aktywna aukcja' || dzialka.status === 'Aktywna licytacja') {
         actionBtn.classList.remove('d-none');
-        actionBtn.onclick = function() {
+        actionBtn.onclick = function () {
             localStorage.setItem('selected_auction_id', dzialka.id);
             const myModalEl = document.getElementById('dzialkaModal');
             const modalInstance = bootstrap.Modal.getInstance(myModalEl);
@@ -162,7 +161,7 @@ window.usunDzialke = async function (id) {
     } catch (error) { pokazPowiadomienie("Błąd usuwania: " + error.message, 'danger'); }
 };
 
-window.zmienStatusDzialki = async function(id, nowyStatus) {
+window.zmienStatusDzialki = async function (id, nowyStatus) {
     if (!(await potwierdzAkcje(`Czy zmienić status działki na: "${nowyStatus}"?`))) return;
     try {
         await API.request(`/dzialki/${id}/status`, 'PATCH', { nowyStatus: nowyStatus });
@@ -200,5 +199,11 @@ document.getElementById('btnCopyPlotNumber')?.addEventListener('click', () => {
     });
 });
 
-window.addEventListener('hashchange', () => { if (window.location.hash === '#mapa' || window.location.hash === '') setTimeout(() => map.invalidateSize(), 200); });
+window.addEventListener('hashchange', () => { 
+    if (window.location.hash === '#mapa' || window.location.hash === '') { 
+        pobierzDaneZSerwera(); 
+        setTimeout(() => map.invalidateSize(), 200); 
+    } 
+});
+
 document.addEventListener('DOMContentLoaded', () => { pobierzDaneZSerwera(); setTimeout(() => map.invalidateSize(), 400); });
