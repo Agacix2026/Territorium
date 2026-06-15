@@ -16,64 +16,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (theadTr) {
                 theadTr.innerHTML = `
-                    <th style="width: 80px;">ID</th>
+                    <th style="width: 50px;">Lp.</th>
                     <th>Nazwa Dokumentu i Powiązanie</th>
                     <th style="width: 150px;">Format</th>
-                    ${czyAdmin ? '<th style="width: 150px;" class="text-end">Akcja</th>' : ''}
+                    <th style="width: 200px;" class="text-end">Akcja</th>
                 `;
             }
 
-            documentsTableBody.innerHTML = `<tr><td colspan="${czyAdmin ? 4 : 3}" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Ładowanie dokumentacji...</td></tr>`;
+            documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Ładowanie dokumentacji...</td></tr>`;
 
             const docs = await API.request('/dokumenty', 'GET');
             documentsTableBody.innerHTML = '';
 
             if (docs.length === 0) {
-                documentsTableBody.innerHTML = `<tr><td colspan="${czyAdmin ? 4 : 3}" class="text-center text-muted py-4">Brak dokumentów technicznych w systemie.</td></tr>`;
+                documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Brak dokumentów technicznych w systemie.</td></tr>`;
                 return;
             }
 
-            docs.forEach(doc => {
+            docs.forEach((doc, index) => {
                 const tr = document.createElement('tr');
-                
-                let actionButtonsCell = '';
+
+                let actionButtonsCell = `
+                    <a href="${doc.url || '#'}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm border-0">
+                        <i class="bi bi-download"></i> Pobierz
+                    </a>
+                `;
+
                 if (czyAdmin) {
-                    actionButtonsCell = `
-                        <td class="text-end text-nowrap">
-                            <a href="${doc.url || '#'}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm border-0" title="Otwórz link">
-                                <i class="bi bi-box-arrow-up-right"></i>
-                            </a>
-                            <button class="btn btn-sm btn-outline-danger shadow-sm border-0 ms-1" onclick="usunDokument(${doc.id}, '${doc.nazwa}')" title="Usuń trwale">
-                                <i class="bi bi-trash3-fill"></i>
-                            </button>
-                        </td>
+                    actionButtonsCell += `
+                        <button class="btn btn-sm btn-outline-danger shadow-sm border-0 ms-1" onclick="usunDokument(${doc.id}, '${doc.nazwa}')" title="Usuń trwale">
+                            <i class="bi bi-trash3-fill"></i>
+                        </button>
                     `;
                 }
 
-                const linkDoDokumentu = doc.url 
-                    ? `<a href="${doc.url}" target="_blank" class="text-decoration-none fw-bold text-primary">${doc.nazwa} <i class="bi bi-link-45deg"></i></a>` 
-                    : `<span class="fw-bold">${doc.nazwa}</span>`;
-
-                // Dynamiczne ikony i kolory w zależności od formatu
+                const nazwaDokumentu = `<span class="fw-bold">${doc.nazwa}</span>`;
                 let badgeColor = 'bg-secondary';
                 let iconClass = 'bi-file-earmark';
-                
+
                 if (doc.typ_pliku === 'PDF') { badgeColor = 'bg-danger'; iconClass = 'bi-file-earmark-pdf'; }
                 else if (doc.typ_pliku === 'DOCX') { badgeColor = 'bg-primary'; iconClass = 'bi-file-earmark-word'; }
                 else if (doc.typ_pliku === 'XLSX') { badgeColor = 'bg-success'; iconClass = 'bi-file-earmark-excel'; }
                 else if (doc.typ_pliku === 'JPG') { badgeColor = 'bg-warning text-dark'; iconClass = 'bi-file-earmark-image'; }
 
+                // ZMIANA: Tech ID dopisuje się jako tekst tylko gdy zalogowany jest Admin
                 tr.innerHTML = `
-                    <td>${doc.id}</td>
-                    <td>${linkDoDokumentu} <br><small class="text-muted">(Powiązanie: ${doc.obiekt_typ.toUpperCase()} #${doc.obiekt_id})</small></td>
+                    <th scope="row" class="text-muted">${index + 1}</th>
+                    <td>
+                        ${nazwaDokumentu} <br>
+                        <small class="text-muted">(Powiązanie: ${doc.obiekt_typ.toUpperCase()} #${doc.obiekt_id}${czyAdmin ? ` | Tech ID: ${doc.id}` : ''})</small>
+                    </td>
                     <td><span class="badge ${badgeColor}"><i class="bi ${iconClass} me-1"></i>${doc.typ_pliku}</span></td>
-                    ${actionButtonsCell}
+                    <td class="text-end text-nowrap">${actionButtonsCell}</td>
                 `;
                 documentsTableBody.appendChild(tr);
             });
         } catch (error) {
-            const cols = isAdmin() ? 4 : 3;
-            documentsTableBody.innerHTML = `<tr><td colspan="${cols}" class="text-danger text-center"><i class="bi bi-exclamation-triangle me-2"></i>Błąd pobierania dokumentów: ${error.message}</td></tr>`;
+            documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-danger text-center"><i class="bi bi-exclamation-triangle me-2"></i>Błąd pobierania dokumentów: ${error.message}</td></tr>`;
         }
     }
 
@@ -82,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             await API.request(`/dokumenty/${id}`, 'DELETE');
             pokazPowiadomienie('Dokument został trwale usunięty.', 'success');
-            loadDocuments(); 
+            loadDocuments();
         } catch (error) {
             pokazPowiadomienie('Błąd usuwania: ' + error.message, 'danger');
         }
@@ -92,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addDocumentBtnUrzednik.addEventListener("click", async () => {
             const nazwa = document.getElementById('documentNameUrzednik').value;
             const url = document.getElementById('documentUrlUrzednik').value;
-            const typPliku = document.getElementById('documentFileTypeUrzednik').value; // Pobieramy wartość z selecta
+            const typPliku = document.getElementById('documentFileTypeUrzednik').value;
             const obiektId = document.getElementById('documentObiektIdUrzednik').value;
             const obiektTyp = document.getElementById('documentObiektTypUrzednik').value;
 
@@ -103,19 +102,18 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 addDocumentBtnUrzednik.disabled = true;
                 addDocumentBtnUrzednik.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Wysyłanie...';
-
+                
                 await API.request('/dokumenty', 'POST', {
                     nazwa: nazwa,
                     url: url,
-                    typ_pliku: typPliku, // Wysyłamy wybrany format do bazy
+                    typ_pliku: typPliku,
                     obiekt_id: parseInt(obiektId),
                     obiekt_typ: obiektTyp
                 });
 
                 pokazPowiadomienie('Dokument i link zapisane w bazie PostgreSQL.', 'success');
                 document.getElementById('formularzDokumentuUrzednik').reset();
-                loadDocuments(); 
-
+                loadDocuments();
             } catch (error) {
                 pokazPowiadomienie('Błąd zapisu: ' + error.message, 'danger');
             } finally {
