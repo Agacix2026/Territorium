@@ -53,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const nazwaDokumentu = `<span class="fw-bold">${doc.nazwa}</span>`;
                 const opisDom = doc.opis ? `<br><small class="text-muted">${doc.opis}</small>` : '';
                 
-                // ZMIANA: Powiązanie widoczne tylko dla admina
                 const powiazanieDom = czyAdmin ? `<br><small class="text-muted">(Powiązanie: ${doc.obiekt_typ.toUpperCase()} #${doc.obiekt_id} | Tech ID: ${doc.id})</small>` : '';
 
                 let badgeColor = 'bg-secondary';

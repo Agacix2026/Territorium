@@ -3,7 +3,6 @@ const router = express.Router();
 const pool = require('../db');
 const { verifyAdmin } = require('../middleware/auth');
 
-// POBIERANIE WSZYSTKICH UMÓW
 router.get('/', async (req, res) => {
     try {
         const query = 'SELECT * FROM Umowy ORDER BY id DESC;';
@@ -15,7 +14,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// DODAWANIE NOWEJ UMOWY
 router.post('/', verifyAdmin, async (req, res) => {
     try {
         const { id_dzialki, imie_nazwisko_najemcy, email_najemcy, numer_umowy, url, data_rozpoczecia, data_zakonczenia, wartosc_czynszu } = req.body;
@@ -38,7 +36,6 @@ router.post('/', verifyAdmin, async (req, res) => {
     }
 });
 
-// USUWANIE UMOWY (Tylko Admin)
 router.delete('/:id', verifyAdmin, async (req, res) => {
     try {
         const result = await pool.query('DELETE FROM Umowy WHERE id = $1 RETURNING id', [req.params.id]);
@@ -52,7 +49,6 @@ router.delete('/:id', verifyAdmin, async (req, res) => {
     }
 });
 
-// ZMIANA STATUSU PODPISU (Tylko Admin)
 router.patch('/:id/podpisz', verifyAdmin, async (req, res) => {
     try {
         const { czyPodpisana } = req.body;

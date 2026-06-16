@@ -92,7 +92,6 @@ document.addEventListener('DOMContentLoaded', ()  =>  {
         });
     }
 
-    // Nasłuchiwanie na Enter w polu E-mail (przejście do hasła)
     if (loginEmail) {
         loginEmail.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -102,7 +101,6 @@ document.addEventListener('DOMContentLoaded', ()  =>  {
         });
     }
 
-    // Nasłuchiwanie na Enter w polu Hasło (logowanie)
     if (loginHaslo) {
         loginHaslo.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {

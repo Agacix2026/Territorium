@@ -2,7 +2,6 @@
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'super-tajny-klucz-territorium';
 
-// Weryfikacja czy użytkownik jest w ogóle zalogowany
 function verifyToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -18,7 +17,6 @@ function verifyToken(req, res, next) {
     });
 }
 
-// Weryfikacja czy użytkownik ma uprawnienia Urzędnika (Admin)
 function verifyAdmin(req, res, next) {
     verifyToken(req, res, () => {
         if (req.user.rola !== 'Admin') {

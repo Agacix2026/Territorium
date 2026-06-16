@@ -30,7 +30,6 @@ router.post('/', verifyAdmin, async (req, res) => {
     }
 });
 
-// ZMIANA STATUSU (Automatyczne otwieranie/zamykanie aukcji!)
 router.patch('/:id/status', verifyAdmin, async (req, res) => {
     try {
         const idDzialki = req.params.id;

@@ -1,7 +1,5 @@
--- 1. ROZSZERZENIE POSTGIS
 CREATE EXTENSION IF NOT EXISTS postgis;
 
--- 2. UŻYTKOWNICY
 CREATE TABLE Uzytkownicy (
     id SERIAL PRIMARY KEY,
     login VARCHAR(255) UNIQUE NOT NULL,
@@ -13,7 +11,6 @@ INSERT INTO Uzytkownicy (login, haslo_hash, rola)
 VALUES ('admin@urzad.pl', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Admin')
 ON CONFLICT (login) DO UPDATE SET rola = 'Admin';
 
--- 3. NIERUCHOMOŚCI
 CREATE TABLE Nieruchomosci (
     ID SERIAL PRIMARY KEY,
     nazwa VARCHAR(255) DEFAULT 'Działka bez nazwy',
@@ -24,7 +21,6 @@ CREATE TABLE Nieruchomosci (
     cena NUMERIC(15, 2) DEFAULT 0.00
 );
 
--- 4. UMOWY (ZMIANA: ZAMIAST ID NAJEMCY JEST IMIE/NAZWISKO I EMAIL)
 CREATE TABLE Umowy (
     id SERIAL PRIMARY KEY,
     id_dzialki INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
@@ -41,7 +37,6 @@ CREATE TABLE Umowy (
     CONSTRAINT check_daty_chronologia CHECK (data_zakonczenia > data_rozpoczecia)
 );
 
--- 5. DOKUMENTY
 CREATE TABLE dokumenty (
     id SERIAL PRIMARY KEY,
     nazwa VARCHAR(255) NOT NULL,
@@ -53,7 +48,6 @@ CREATE TABLE dokumenty (
     data_dodania TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. AUKCJE
 CREATE TABLE Aukcje (
     id SERIAL PRIMARY KEY,
     id_nieruchomosci INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
@@ -79,7 +73,6 @@ CREATE TABLE Licytacje_Log (
     status_weryfikacji BOOLEAN DEFAULT TRUE
 );
 
--- 7. WNIOSKI WADIUM
 CREATE TABLE Wnioski_Wadium (
     id SERIAL PRIMARY KEY,
     id_uzytkownika INTEGER REFERENCES Uzytkownicy(id) ON DELETE CASCADE,

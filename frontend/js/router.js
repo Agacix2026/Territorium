@@ -2,7 +2,6 @@ function handleRouting() {
     const hash = window.location.hash || '#mapa'; 
     const viewName = hash.substring(1); 
 
-    // Pobieranie roli z obiektu user_data zapisanego przez Agatę
     let rola = 'Gosc';
     const userDataString = localStorage.getItem('user_data');
     if (userDataString) {
@@ -14,14 +13,12 @@ function handleRouting() {
         }
     }
 
-    // a) Zabezpieczenie dostępu do Panelu Urzędnika
     if (viewName === 'panel-urzednika' && rola !== 'Admin') {
         alert('Brak uprawnień. Ten panel jest dostępny tylko dla urzędników.');
         window.location.hash = '#mapa'; 
         return; 
     }
 
-    // b) Dynamiczne ukrywanie w nawigacji zakładki Panelu Urzędnika
     const linkPanelUrzednika = document.querySelector('a[href="#panel-urzednika"]');
     if (linkPanelUrzednika) {
         if (rola === 'Admin') {
@@ -31,7 +28,6 @@ function handleRouting() {
         }
     }
 
-    // Wyświetlanie odpowiedniego widoku
     const allViews = document.querySelectorAll('.route-view');
     allViews.forEach(view => {
         view.classList.add('d-none');
@@ -42,11 +38,10 @@ function handleRouting() {
     if (activeView) {
         activeView.classList.remove('d-none');
         
-        // --- KLUCZOWA NAPRAWA MAPY ---
         if (viewName === 'mapa' && typeof window.map !== 'undefined') {
             setTimeout(() => {
                 window.map.invalidateSize();
-            }, 100); // Małe opóźnienie, by przeglądarka zdążyła zdjąć d-none
+            }, 100);
         }
     } else {
         const defaultView = document.getElementById('mapa');

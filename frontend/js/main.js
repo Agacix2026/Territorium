@@ -1,4 +1,3 @@
-// frontend/js/main.js - Inicjalizacja globalnych elementów UI
 document.addEventListener('DOMContentLoaded', () => {
     const navLinks = document.querySelectorAll('.nav-link, .navbar-brand');
     const navbarCollapse = document.getElementById('mainNav');
@@ -12,14 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 1. WSTRZYKNIĘCIE GLOBALNEGO KONTENERA NA POWIADOMIENIA (NA GÓRZE)
     const toastContainer = document.createElement('div');
     toastContainer.className = 'toast-container position-fixed top-0 start-50 translate-middle-x p-3 mt-2';
     toastContainer.style.zIndex = '9999';
     toastContainer.id = 'global-toast-container';
     document.body.appendChild(toastContainer);
 
-    // 2. WSTRZYKNIĘCIE GLOBALNEGO MODALA POTWIERDZEŃ
     const modalHtml = `
     <div class="modal fade" id="customConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 9999;">
         <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -38,10 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 });
 
-// GLOBALNE FUNKCJE DOSTĘPNE DLA WSZYSTKICH MODUŁÓW
 window.pokazPowiadomienie = function(wiadomosc, typ = 'success') {
     const container = document.getElementById('global-toast-container');
-    if (!container) return alert(wiadomosc); // Zabezpieczenie
+    if (!container) return alert(wiadomosc);
     
     let icon = 'bi-check-circle-fill';
     if (typ === 'danger') icon = 'bi-exclamation-triangle-fill';
@@ -67,7 +63,7 @@ window.pokazPowiadomienie = function(wiadomosc, typ = 'success') {
 window.potwierdzAkcje = function(wiadomosc) {
     return new Promise((resolve) => {
         const modalEl = document.getElementById('customConfirmModal');
-        if (!modalEl) return resolve(confirm(wiadomosc)); // Zabezpieczenie
+        if (!modalEl) return resolve(confirm(wiadomosc));
         
         document.getElementById('confirmModalText').innerText = wiadomosc;
         const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });

@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
             
-            // Kolumny: 9 dla admina, 7 dla użytkownika
             tableBody.innerHTML = `<tr><td colspan="${czyAdmin ? 9 : 7}" class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Ładowanie danych...</td></tr>`;
 
             const umowy = await API.request('/umowy', 'GET');
@@ -52,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? `<a href="${umowa.url}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm border-0" title="Pobierz Plik"><i class="bi bi-download"></i> Pobierz</a>`
                     : ``;
 
-                // Nowa komórka z danymi najemcy, dostępna tylko dla admina
                 let najemcaCell = '';
                 if (czyAdmin) {
                     const emailDom = umowa.email_najemcy ? `<br><small class="text-muted"><i class="bi bi-envelope"></i> ${umowa.email_najemcy}</small>` : '';
@@ -117,7 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
         formPanel.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Bezpieczne pobieranie wartości z formularza
             const idDzialki = document.getElementById('idDzialkiPanel') ? document.getElementById('idDzialkiPanel').value : 0;
             const imieNazwisko = document.getElementById('imieNazwiskoPanel') ? document.getElementById('imieNazwiskoPanel').value : '';
             const emailNajemcy = document.getElementById('emailNajemcyPanel') ? document.getElementById('emailNajemcyPanel').value : '';

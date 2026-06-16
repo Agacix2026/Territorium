@@ -1,14 +1,11 @@
 const API_BASE_URL = 'http://localhost:3100/api';
-//Serwer: http://149.156.194.192:8303/api
 
 const API = {
     async request(endpoint, method = 'GET', data = null) {
         const options = { method: method, headers: { 'Content-Type': 'application/json' } };
         
-        // Pobieranie prawdziwego tokena z logowania
         const token = localStorage.getItem('jwt_token');
 
-        // Automatyczne doklejanie nagłówka autoryzacji (z pominięciem logowania/rejestracji)
         if (token && !endpoint.includes('/login') && !endpoint.includes('/register')) {
             options.headers['Authorization'] = `Bearer ${token}`;
         }

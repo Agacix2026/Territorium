@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # 1. BAZA DANYCH (PostgreSQL + PostGIS dla map)
   db:
     image: postgis/postgis:15-3.3-alpine
     environment:
@@ -10,15 +9,12 @@ services:
       POSTGRES_DB: territorium_db
     volumes:
       - pg-data-v3:/var/lib/postgresql/data
-      # DODAJCIE TĘ LINIJKĘ (uruchamia SQL przy starcie):
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    # Port 5432 jest ukryty przed światem zewnętrznym, dostępny tylko w sieci Dockera
 
-  # 2. BACKEND API (Node.js)
   backend:
     build: ./backend
     ports:
-      - "3100:3000" # Lokalnie uruchamiamy na porcie 3100 (na serwerze zmienisz na swoje 8303)
+      - "3100:3000"
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -30,13 +26,11 @@ services:
     depends_on:
       - db
 
-  # 3. FRONTEND (Czysty HTML/CSS/JS serwowany przez serwer Nginx)
   frontend:
     image: nginx:alpine
     ports:
-      - "3200:80" # Lokalnie uruchamiamy na porcie 3200 (na serwerze zmienisz na swoje 8302)
+      - "3200:80"
     volumes:
-      # Bind Mount: łączy pliki na Twoim dysku z serwerem. Zmiany w HTML widać od razu!
       - ./frontend:/usr/share/nginx/html:ro
     depends_on:
       - backend

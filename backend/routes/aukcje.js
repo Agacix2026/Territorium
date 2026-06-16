@@ -3,7 +3,6 @@ const router = express.Router();
 const pool = require('../db');
 const { verifyAdmin } = require('../middleware/auth');
 
-// POBIERANIE WNIOSKÓW (Admin)
 router.get('/wnioski/wadium', verifyAdmin, async (req, res) => {
     try {
         const query = `
@@ -18,7 +17,6 @@ router.get('/wnioski/wadium', verifyAdmin, async (req, res) => {
     }
 });
 
-// ZATWIERDZENIE (Admin)
 router.patch('/wnioski/:id/zatwierdz', verifyAdmin, async (req, res) => {
     try {
         await pool.query('UPDATE Wnioski_Wadium SET status = $1 WHERE id = $2', ['Zatwierdzone', req.params.id]);
@@ -28,7 +26,6 @@ router.patch('/wnioski/:id/zatwierdz', verifyAdmin, async (req, res) => {
     }
 });
 
-// NOWOŚĆ: ODRZUCENIE / USUNIĘCIE WNIOSKU (Admin)
 router.delete('/wnioski/:id', verifyAdmin, async (req, res) => {
     try {
         await pool.query('DELETE FROM Wnioski_Wadium WHERE id = $1', [req.params.id]);
@@ -38,7 +35,6 @@ router.delete('/wnioski/:id', verifyAdmin, async (req, res) => {
     }
 });
 
-// POBIERANIE WSZYSTKICH AUKCJI
 router.get('/', async (req, res) => {
     try {
         const userId = req.query.userId || null;
@@ -63,7 +59,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// ZGŁASZANIE WADIUM PRZEZ OBYWATELA
 router.post('/:id/zglos-wadium', async (req, res) => {
     try {
         const { id_uzytkownika } = req.body;
@@ -79,7 +74,6 @@ router.post('/:id/zglos-wadium', async (req, res) => {
     }
 });
 
-// LICYTOWANIE Z ZABEZPIECZENIEM
 router.post('/:id/bid', async (req, res) => {
     try {
         const auctionId = req.params.id;
@@ -88,7 +82,6 @@ router.post('/:id/bid', async (req, res) => {
         const wadiumCheck = await pool.query("SELECT id FROM Wnioski_Wadium WHERE id_uzytkownika = $1 AND id_aukcji = $2 AND status = 'Zatwierdzone'", [id_licytanta, auctionId]);
         const userRole = await pool.query('SELECT rola FROM Uzytkownicy WHERE id = $1', [id_licytanta]);
 
-        // Autoryzacja: Tylko zatwierdzone wadium DLA TEJ AUKCJI
         if (wadiumCheck.rows.length === 0 && userRole.rows[0].rola !== 'Licytant' && userRole.rows[0].rola !== 'Admin') {
             return res.status(403).json({ success: false, message: 'Brak zatwierdzonego wadium dla tej konkretnej aukcji!' });
         }
