@@ -17,17 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (theadTr) {
                 theadTr.innerHTML = `
                     <th style="width: 50px;">Lp.</th>
-                    <th>Nazwa Dokumentu i Powiązanie</th>
+                    <th>${czyAdmin ? 'Nazwa Dokumentu i Powiązanie' : 'Nazwa Dokumentu'}</th>
                     <th style="width: 150px;">Format</th>
-                    <th style="width: 200px;" class="text-end">Akcja</th>
+                    <th class="text-center" style="width: 200px;">Plik</th>
                 `;
             }
 
             documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Ładowanie dokumentacji...</td></tr>`;
 
             const docs = await API.request('/dokumenty', 'GET');
-            documentsTableBody.innerHTML = '';
 
+            documentsTableBody.innerHTML = '';
             if (docs.length === 0) {
                 documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Brak dokumentów technicznych w systemie.</td></tr>`;
                 return;
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             docs.forEach((doc, index) => {
                 const tr = document.createElement('tr');
-
+                
                 let actionButtonsCell = `
                     <a href="${doc.url || '#'}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm border-0">
                         <i class="bi bi-download"></i> Pobierz
@@ -51,6 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const nazwaDokumentu = `<span class="fw-bold">${doc.nazwa}</span>`;
+                const opisDom = doc.opis ? `<br><small class="text-muted">${doc.opis}</small>` : '';
+                
+                // ZMIANA: Powiązanie widoczne tylko dla admina
+                const powiazanieDom = czyAdmin ? `<br><small class="text-muted">(Powiązanie: ${doc.obiekt_typ.toUpperCase()} #${doc.obiekt_id} | Tech ID: ${doc.id})</small>` : '';
+
                 let badgeColor = 'bg-secondary';
                 let iconClass = 'bi-file-earmark';
 
@@ -59,15 +64,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (doc.typ_pliku === 'XLSX') { badgeColor = 'bg-success'; iconClass = 'bi-file-earmark-excel'; }
                 else if (doc.typ_pliku === 'JPG') { badgeColor = 'bg-warning text-dark'; iconClass = 'bi-file-earmark-image'; }
 
-                // ZMIANA: Tech ID dopisuje się jako tekst tylko gdy zalogowany jest Admin
                 tr.innerHTML = `
-                    <th scope="row" class="text-muted">${index + 1}</th>
+                    <th scope="row">${index + 1}</th>
                     <td>
-                        ${nazwaDokumentu} <br>
-                        <small class="text-muted">(Powiązanie: ${doc.obiekt_typ.toUpperCase()} #${doc.obiekt_id}${czyAdmin ? ` | Tech ID: ${doc.id}` : ''})</small>
+                        ${nazwaDokumentu} ${opisDom} ${powiazanieDom}
                     </td>
                     <td><span class="badge ${badgeColor}"><i class="bi ${iconClass} me-1"></i>${doc.typ_pliku}</span></td>
-                    <td class="text-end text-nowrap">${actionButtonsCell}</td>
+                    <td class="text-center text-nowrap">${actionButtonsCell}</td>
                 `;
                 documentsTableBody.appendChild(tr);
             });
@@ -90,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addDocumentBtnUrzednik) {
         addDocumentBtnUrzednik.addEventListener("click", async () => {
             const nazwa = document.getElementById('documentNameUrzednik').value;
+            const opis = document.getElementById('documentOpisUrzednik') ? document.getElementById('documentOpisUrzednik').value : '';
             const url = document.getElementById('documentUrlUrzednik').value;
             const typPliku = document.getElementById('documentFileTypeUrzednik').value;
             const obiektId = document.getElementById('documentObiektIdUrzednik').value;
@@ -102,9 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 addDocumentBtnUrzednik.disabled = true;
                 addDocumentBtnUrzednik.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Wysyłanie...';
-                
+
                 await API.request('/dokumenty', 'POST', {
                     nazwa: nazwa,
+                    opis: opis,
                     url: url,
                     typ_pliku: typPliku,
                     obiekt_id: parseInt(obiektId),

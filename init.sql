@@ -24,12 +24,15 @@ CREATE TABLE Nieruchomosci (
     cena NUMERIC(15, 2) DEFAULT 0.00
 );
 
--- 4. UMOWY
+-- 4. UMOWY (ZMIANA: ZAMIAST ID NAJEMCY JEST IMIE/NAZWISKO I EMAIL)
 CREATE TABLE Umowy (
     id SERIAL PRIMARY KEY,
     id_dzialki INTEGER NOT NULL REFERENCES Nieruchomosci(ID) ON DELETE CASCADE,
-    id_najemcy INTEGER NOT NULL REFERENCES Uzytkownicy(id) ON DELETE RESTRICT,
+    imie_nazwisko_najemcy VARCHAR(255) NOT NULL,
+    email_najemcy VARCHAR(255),
     numer_umowy VARCHAR(100) UNIQUE NOT NULL,
+    url VARCHAR(2048),
+    czy_podpisana BOOLEAN DEFAULT FALSE,
     data_rozpoczecia DATE NOT NULL,
     data_zakonczenia DATE NOT NULL,
     wartosc_czynszu NUMERIC(12, 2) NOT NULL CHECK (wartosc_czynszu >= 0),
@@ -38,10 +41,11 @@ CREATE TABLE Umowy (
     CONSTRAINT check_daty_chronologia CHECK (data_zakonczenia > data_rozpoczecia)
 );
 
--- 5. DOKUMENTY (ZMODYFIKOWANE - DODANO POLE url)
+-- 5. DOKUMENTY
 CREATE TABLE dokumenty (
     id SERIAL PRIMARY KEY,
     nazwa VARCHAR(255) NOT NULL,
+    opis TEXT,
     url VARCHAR(2048) NOT NULL,
     typ_pliku VARCHAR(50) DEFAULT 'PDF',
     obiekt_id INTEGER NOT NULL,

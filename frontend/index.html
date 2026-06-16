@@ -4,13 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Territorium GovTech - Portal Zarządzania Mieniem Publicznym</title>
-    <!-- PRZYWRÓCONE LOGO (Favicon) -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏛️</text></svg>">
-    <!-- Bootstrap 5 CSS -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22> 🏛️ </text></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <!-- Leaflet Map CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body {
@@ -19,7 +15,7 @@
             overflow-x: hidden;
         }
         .gov-navbar {
-            background-color: #0b5145 !important; 
+            background-color: #0b5145 !important;
         }
         .gov-card {
             border: none;
@@ -63,8 +59,6 @@
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
-
-    <!-- GLOBALNY PASEK NAWIGACJI -->
     <nav class="navbar navbar-expand-lg navbar-dark gov-navbar shadow-sm mb-4">
         <div class="container">
             <a class="navbar-brand fw-bold d-flex align-items-center" href="#mapa">
@@ -79,35 +73,45 @@
                     <li class="nav-item"><a class="nav-link" href="#umowy">Umowy</a></li>
                     <li class="nav-item"><a class="nav-link" href="#aukcje">Aukcje</a></li>
                     <li class="nav-item"><a class="nav-link" href="#dokumenty">Dokumenty</a></li>
-                    <li class="nav-item d-none" id="navItemAdmin"><a class="nav-link text-warning" href="#panel-urzednika"><i class="bi bi-sliders me-1"></i>Panel Urzędnika</a></li>
+                    <li class="nav-item d-none" id="navItemAdmin">
+                        <a class="nav-link text-warning" href="#panel-urzednika">
+                            <i class="bi bi-sliders me-1"></i>Panel Urzędnika
+                        </a>
+                    </li>
                 </ul>
                 <div class="d-flex align-items-center">
                     <div id="navItemLogowanie">
-                        <a href="#logowanie" class="btn btn-outline-light btn-sm px-3 fw-medium"><i class="bi bi-box-arrow-in-right me-1"></i> Logowanie</a>
+                        <a href="#logowanie" class="btn btn-outline-light btn-sm px-3 fw-medium">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Logowanie
+                        </a>
                     </div>
                     <div id="navItemWyloguj" class="d-none text-light small fw-medium">
                         <span class="me-2 text-white-50" id="wylogujUser">(użytkownik)</span>
-                        <button id="wylogujBtn" class="btn btn-danger btn-sm px-3"><i class="bi bi-box-arrow-left me-1"></i> Wyloguj</button>
+                        <button id="wylogujBtn" class="btn btn-danger btn-sm px-3">
+                            <i class="bi bi-box-arrow-left me-1"></i> Wyloguj
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- GŁÓWNY KONTENER -->
     <main class="container flex-grow-1 mb-5">
-
-        <!-- 1. MAPA GIS -->
+        <!-- WIDOK: MAPA GIS -->
         <div id="mapa" class="route-view row g-4">
             <div class="col-12">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gov-card p-3">
-                    <h2 class="h4 fw-bold text-dark mb-2 mb-md-0"><i class="bi bi-map-fill text-primary me-2"></i>Ewidencja Geodezyjna Mienia</h2>
+                    <h2 class="h4 fw-bold text-dark mb-2 mb-md-0">
+                        <i class="bi bi-map-fill text-primary me-2"></i>Ewidencja Geodezyjna Mienia
+                    </h2>
                     <div class="d-flex gap-2 flex-wrap">
                         <button class="btn btn-sm btn-outline-secondary filter-pill active" data-filter="all">Wszystkie</button>
                         <button class="btn btn-sm btn-outline-primary filter-pill" data-filter="Mieszkalne">Mieszkalne</button>
                         <button class="btn btn-sm btn-outline-info filter-pill text-dark" data-filter="Usługowe">Usługowe</button>
                         <button class="btn btn-sm btn-outline-dark filter-pill" data-filter="Przemysłowe">Przemysłowe</button>
-                        <button class="btn btn-sm btn-outline-warning filter-pill text-dark" data-filter="Aktywna licytacja"><i class="bi bi-hammer me-1"></i>Na licytację</button>
+                        <button class="btn btn-sm btn-outline-warning filter-pill text-dark" data-filter="Aktywna licytacja">
+                            <i class="bi bi-hammer me-1"></i>Na licytację
+                        </button>
                     </div>
                 </div>
             </div>
@@ -120,17 +124,17 @@
                         <h5 class="fw-bold text-dark mb-1">Rejestr Nieruchomości</h5>
                         <p class="text-muted small">Wybierz zasób z listy lub kliknij wielokąt na mapie.</p>
                     </div>
-                    <div class="card-body plot-list-container pt-1" id="plotListContainer">
-                        <!-- Generowane przez mapa.js -->
-                    </div>
+                    <div class="card-body plot-list-container pt-1" id="plotListContainer"></div>
                 </div>
             </div>
         </div>
 
-        <!-- 2. UMOWY -->
+        <!-- WIDOK: REJESTR UMÓW -->
         <div id="umowy" class="route-view d-none">
             <div class="d-flex justify-content-between align-items-center mb-4 gov-card p-3">
-                <h2 class="h4 fw-bold text-dark mb-0"><i class="bi bi-file-earmark-text-fill text-success me-2"></i>Rejestr Umów Najmu i Dzierżawy</h2>
+                <h2 class="h4 fw-bold text-dark mb-0">
+                    <i class="bi bi-file-earmark-text-fill text-success me-2"></i>Rejestr Umów Najmu i Dzierżawy
+                </h2>
             </div>
             <div class="gov-card p-4 bg-white">
                 <div class="table-responsive">
@@ -140,58 +144,60 @@
                                 <th style="width: 50px;">Lp.</th>
                                 <th>Sygnatura (Nr Umowy)</th>
                                 <th>Zasób (ID Działki)</th>
-                                <th>Najemca (ID)</th>
                                 <th>Okres Dzierżawy</th>
                                 <th>Wartość Czynszu</th>
+                                <th>Status</th>
+                                <th class="text-center" style="width: 100px;">Plik</th>
                             </tr>
                         </thead>
-                        <tbody id="umowy-table-body-panel">
-                            <!-- Generowane przez contracts.js -->
-                        </tbody>
+                        <tbody id="umowy-table-body-panel"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- 3. AUKCJE -->
+        <!-- WIDOK: AUKCJE -->
         <div id="aukcje" class="route-view d-none">
             <div class="d-flex justify-content-between align-items-center mb-4 gov-card p-3">
-                <h2 class="h4 fw-bold text-dark mb-0"><i class="bi bi-hammer text-warning me-2"></i>Portal Ogłoszeniowy i Licytacje</h2>
-                <span class="badge bg-primary px-3 py-2 fw-medium"><i class="bi bi-shield-check me-1"></i>Weryfikacja wadium aktywna</span>
+                <h2 class="h4 fw-bold text-dark mb-0">
+                    <i class="bi bi-hammer text-warning me-2"></i>Portal Ogłoszeniowy i Licytacje
+                </h2>
+                <span class="badge bg-primary px-3 py-2 fw-medium">
+                    <i class="bi bi-shield-check me-1"></i>Weryfikacja wadium aktywna
+                </span>
             </div>
-            <div id="auctions-container" class="row g-4">
-                <!-- Generowane przez auctions.js -->
-            </div>
+            <div id="auctions-container" class="row g-4"></div>
         </div>
 
-        <!-- 4. DOKUMENTY -->
+        <!-- WIDOK: DOKUMENTY -->
         <div id="dokumenty" class="route-view d-none">
             <div class="card gov-card p-4">
-                <h2 class="h4 fw-bold text-dark mb-4"><i class="bi bi-folder-fill text-danger me-2"></i>Cyfrowe Repozytorium Dokumentacji</h2>
+                <h4 class="fw-bold text-dark mb-4">
+                    <i class="bi bi-folder-fill text-danger me-2"></i>Cyfrowe Repozytorium Dokumentacji
+                </h4>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
                                 <th style="width: 50px;">Lp.</th>
-                                <th>Nazwa Dokumentu i Powiązanie</th>
+                                <th>Nazwa Dokumentu</th>
                                 <th style="width: 150px;">Format</th>
-                                <th style="width: 200px;" class="text-end">Akcja</th>
+                                <th style="width: 200px;" class="text-end">Plik</th>
                             </tr>
                         </thead>
-                        <tbody id="documentsTableBody">
-                            <!-- Generowane przez documents.js -->
-                        </tbody>
+                        <tbody id="documentsTableBody"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- 5. PANEL URZĘDNIKA -->
+        <!-- WIDOK: PANEL URZĘDNIKA -->
         <div id="panel-urzednika" class="route-view d-none">
-            
-            <!-- Wadium -->
+            <!-- Weryfikacja Wadium -->
             <div class="card gov-card p-4 mb-4">
-                <h4 class="fw-bold text-dark mb-3"><i class="bi bi-shield-check text-success me-2"></i>Weryfikacja Wpłat Wadium Online</h4>
+                <h4 class="fw-bold text-dark mb-3">
+                    <i class="bi bi-shield-check text-success me-2"></i>Weryfikacja Wpłat Wadium Online
+                </h4>
                 <div class="table-responsive">
                     <table class="table align-middle">
                         <thead class="table-light">
@@ -202,17 +208,16 @@
                                 <th class="text-end">Decyzja Urzędnika</th>
                             </tr>
                         </thead>
-                        <tbody id="tabela-wadium-body">
-                            <!-- Generowane przez auth.js -->
-                        </tbody>
+                        <tbody id="tabela-wadium-body"></tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Zarządzanie działkami -->
+            <!-- Dodawanie Nieruchomości -->
             <div class="card gov-card p-4 mb-4">
-                <h4 class="fw-bold text-dark mb-3"><i class="bi bi-pencil-square text-primary me-2"></i>Wprowadzanie Nowych Nieruchomości</h4>
-                
+                <h4 class="fw-bold text-dark mb-3">
+                    <i class="bi bi-pencil-square text-primary me-2"></i>Wprowadzanie Nowych Nieruchomości
+                </h4>
                 <form id="formNowaDzialka" class="mb-4 bg-light p-3 rounded border">
                     <div class="row g-3 align-items-end">
                         <div class="col-md-3">
@@ -240,11 +245,12 @@
                             </select>
                         </div>
                         <div class="col-12 mt-3 text-end">
-                            <button type="submit" class="btn btn-success btn-sm px-4 fw-medium"><i class="bi bi-cloud-arrow-up-fill me-1"></i> Zapisz zasób w bazie</button>
+                            <button type="submit" class="btn btn-success btn-sm px-4 fw-medium">
+                                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Zapisz zasób w bazie
+                            </button>
                         </div>
                     </div>
                 </form>
-
                 <div class="table-responsive">
                     <table class="table align-middle table-hover">
                         <thead class="table-light">
@@ -258,61 +264,88 @@
                                 <th class="text-end">Akcje Zarządcze</th>
                             </tr>
                         </thead>
-                        <tbody id="dzialki-table-body">
-                            <!-- Generowane przez mapa.js -->
-                        </tbody>
+                        <tbody id="dzialki-table-body"></tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Generowanie umów -->
+            <!-- Dodawanie Umowy -->
             <div class="card gov-card p-4 mb-4">
-                <h4 class="fw-bold text-dark mb-3"><i class="bi bi-file-earmark-plus text-success me-2"></i>Generowanie Nowej Umowy Dzierżawy</h4>
+                <h4 class="fw-bold text-dark mb-3">
+                    <i class="bi bi-file-earmark-plus text-success me-2"></i>Dodawanie Umowy do Rejestru
+                </h4>
                 <div id="umowy-error-alert" class="alert alert-danger d-none" tabindex="-1"></div>
                 <div id="umowy-success-alert" class="alert alert-success d-none"></div>
+                
                 <form id="formularzUmowyPanel" class="bg-light p-3 rounded border">
                     <div class="row g-3 align-items-end">
                         <div class="col-md-2">
-                            <label class="form-label small fw-bold">Sygnatura Umowy</label>
+                            <label class="form-label small fw-bold">Sygnatura</label>
                             <input type="text" id="numerUmowyPanel" class="form-control form-control-sm" placeholder="np. UM/2026/01" required>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold">ID Najemcy</label>
-                            <input type="number" id="idNajemcyPanel" class="form-control form-control-sm" required>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Imię i nazwisko najemcy</label>
+                            <input type="text" id="imieNazwiskoPanel" class="form-control form-control-sm" placeholder="np. Jan Kowalski" required>
                         </div>
                         <div class="col-md-2">
+                            <label class="form-label small fw-bold">E-mail (opcjonalnie)</label>
+                            <input type="email" id="emailNajemcyPanel" class="form-control form-control-sm" placeholder="np. jan@wp.pl">
+                        </div>
+                        <div class="col-md-1">
                             <label class="form-label small fw-bold">ID Działki</label>
                             <input type="number" id="idDzialkiPanel" class="form-control form-control-sm" required>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold">Rozpoczęcie</label>
+                        <div class="col-md-auto" style="min-width: 120px;">
+                            <label class="form-label small fw-bold">Format</label>
+                            <select class="form-select form-select-sm" id="formatUmowyPanel" required>
+                                <option value="PDF">PDF</option>
+                                <option value="DOCX">Word</option>
+                                <option value="XLSX">Excel</option>
+                                <option value="JPG">Zdjęcie</option>
+                            </select>
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-bold">URL (Plik PDF z Dysku)</label>
+                            <input type="url" id="urlUmowyPanel" class="form-control form-control-sm" placeholder="https://..." required>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Data Rozpoczęcia</label>
                             <input type="date" id="dataStartPanel" class="form-control form-control-sm" required>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold">Zakończenie</label>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Data Zakończenia</label>
                             <input type="date" id="dataKoniecPanel" class="form-control form-control-sm" required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-4">
                             <label class="form-label small fw-bold">Czynsz (PLN)</label>
                             <input type="number" id="czynszPanel" class="form-control form-control-sm" required>
                         </div>
                         <div class="col-12 mt-3 text-end">
-                            <button type="submit" id="btnZapiszUmowePanel" class="btn btn-success btn-sm px-4"><i class="bi bi-check-circle me-1"></i> Zapisz Umowę</button>
+                            <button type="submit" id="btnZapiszUmowePanel" class="btn btn-success btn-sm px-4">
+                                <i class="bi bi-check-circle me-1"></i> Zapisz w Rejestrze
+                            </button>
                         </div>
                     </div>
                 </form>
             </div>
 
-            <!-- Dodawanie dokumentu -->
+            <!-- Dodawanie Dokumentu -->
             <div class="card gov-card p-4">
-                <h4 class="fw-bold text-dark mb-3"><i class="bi bi-file-earmark-arrow-up text-danger me-2"></i>Dodaj Nowy Dokument Techniczny</h4>
+                <h4 class="fw-bold text-dark mb-3">
+                    <i class="bi bi-file-earmark-arrow-up text-danger me-2"></i>Dodawanie Nowego Dokumentu Technicznego
+                </h4>
                 <form id="formularzDokumentuUrzednik" class="bg-light p-3 rounded border">
                     <div class="row g-3 align-items-end">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="documentNameUrzednik" class="form-label small fw-bold">Nazwa dokumentu</label>
                             <input type="text" class="form-control form-control-sm" id="documentNameUrzednik" placeholder="np. Wycena działki" required>
                         </div>
                         <div class="col-md-2">
+                            <label for="documentOpisUrzednik" class="form-label small fw-bold">Opis (opcjonalnie)</label>
+                            <input type="text" class="form-control form-control-sm" id="documentOpisUrzednik" placeholder="np. Krótki opis">
+                        </div>
+                        <div class="col-md-auto" style="min-width: 120px;">
                             <label for="documentFileTypeUrzednik" class="form-label small fw-bold">Format</label>
                             <select class="form-select form-select-sm" id="documentFileTypeUrzednik" required>
                                 <option value="PDF">PDF</option>
@@ -321,11 +354,11 @@
                                 <option value="JPG">Zdjęcie</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col">
                             <label for="documentUrlUrzednik" class="form-label small fw-bold">Adres URL (Link z Dysku)</label>
                             <input type="url" class="form-control form-control-sm" id="documentUrlUrzednik" placeholder="https://..." required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label for="documentObiektIdUrzednik" class="form-label small fw-bold">ID zasobu</label>
                             <input type="number" class="form-control form-control-sm" id="documentObiektIdUrzednik" placeholder="np. 1" required>
                         </div>
@@ -337,14 +370,16 @@
                             </select>
                         </div>
                         <div class="col-12 mt-3 text-end">
-                            <button type="button" id="addDocumentBtnUrzednik" class="btn btn-primary btn-sm px-4 fw-medium"><i class="bi bi-cloud-arrow-up me-1"></i> Wyślij do bazy</button>
+                            <button type="button" id="addDocumentBtnUrzednik" class="btn btn-primary btn-sm px-4 fw-medium">
+                                <i class="bi bi-cloud-arrow-up me-1"></i> Wyślij do bazy
+                            </button>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- 6. LOGOWANIE -->
+        <!-- WIDOK: LOGOWANIE -->
         <div id="logowanie" class="route-view d-none">
             <div class="row justify-content-center pt-4">
                 <div class="col-md-6 col-lg-5">
@@ -383,15 +418,16 @@
                 </div>
             </div>
         </div>
-
     </main>
 
-    <!-- MODAL -->
+    <!-- MODAL SZCZEGÓŁÓW DZIAŁKI -->
     <div class="modal fade" id="dzialkaModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-info-circle-fill text-primary me-2"></i>Karta Katastralna Mienia</h5>
+                    <h5 class="modal-title fw-bold text-dark">
+                        <i class="bi bi-info-circle-fill text-primary me-2"></i>Karta Katastralna Mienia
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -405,23 +441,27 @@
                             <tr><td class="text-muted small py-2">Status prawny zasobu:</td><td class="fw-medium py-2" id="modalStatusPlot">-</td></tr>
                         </tbody>
                     </table>
-                    
                     <span id="copyTargetNum" class="d-none"></span>
-
                     <div class="d-flex gap-2 mt-4">
-                        <button type="button" id="btnCopyPlotNumber" class="btn btn-light btn-sm flex-grow-1 border"><i class="bi bi-clipboard me-1"></i>Kopiuj nazwę</button>
-                        <button type="button" id="modalActionBtn" class="btn btn-warning btn-sm flex-grow-1 fw-medium text-dark d-none"><i class="bi bi-hammer me-1"></i>Przejdź do licytacji</button>
+                        <button type="button" id="btnCopyPlotNumber" class="btn btn-light btn-sm flex-grow-1 border">
+                            <i class="bi bi-clipboard me-1"></i>Kopiuj nazwę
+                        </button>
+                        <button type="button" id="modalActionBtn" class="btn btn-warning btn-sm flex-grow-1 fw-medium text-dark d-none">
+                            <i class="bi bi-hammer me-1"></i>Przejdź do licytacji
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- TOAST -->
+    <!-- TOAST POWIADOMIENIA O SKOPIOWANIU -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1060;">
         <div id="copyToast" class="toast align-items-center text-white bg-dark border-0" role="alert">
             <div class="d-flex">
-                <div class="toast-body"><i class="bi bi-check-circle-fill text-success me-2"></i>Skopiowano do schowka!</div>
+                <div class="toast-body">
+                    <i class="bi bi-check-circle-fill text-success me-2"></i>Skopiowano do schowka!
+                </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
         </div>
@@ -433,8 +473,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- Kolejność skryptów jest ważna, router ładuje się z pliku -->
     <script src="js/api.js"></script>
     <script src="js/state.js"></script>
     <script src="js/router.js"></script>
