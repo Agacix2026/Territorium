@@ -1,6 +1,5 @@
 const map = L.map('gisMapContainer').setView([50.061, 19.937], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-
 let leafletGeoJsonLayer = null;
 const plotListContainer = document.getElementById('plotListContainer');
 
@@ -27,7 +26,7 @@ function renderujDzialki(daneZ_API) {
     plotListContainer.innerHTML = '';
     const adminTableBody = document.getElementById('dzialki-table-body');
     if (adminTableBody) adminTableBody.innerHTML = '';
-
+    
     const geoJsonData = {
         type: "FeatureCollection",
         features: daneZ_API.map(dzialka => ({
@@ -51,7 +50,7 @@ function renderujDzialki(daneZ_API) {
             let kolorHex = "#0d6efd";
             if (kolorBootstrap === 'info') kolorHex = "#0dcaf0";
             if (kolorBootstrap === 'dark') kolorHex = "#212529";
-            if (feature.properties.status === 'Aktywna licytacja' || feature.properties.status === 'Aktywna aukcja') kolorHex = "#ffc107";
+            if (feature.properties.status === 'Aktywna licytacja') kolorHex = "#ffc107";
             return { color: kolorHex, weight: 2, fillColor: kolorHex, fillOpacity: 0.35 };
         },
         onEachFeature: function (feature, layer) {
@@ -84,17 +83,27 @@ function renderujDzialki(daneZ_API) {
 
         if (adminTableBody) {
             const tr = document.createElement('tr');
-            let statusBtn = czyLicytacja
-                ? `<button class="btn btn-sm btn-outline-secondary me-1" onclick="zmienStatusDzialki(${dzialka.id}, 'Dostępna')" title="Wycofaj z licytacji"><i class="bi bi-arrow-down-circle"></i></button>`
-                : `<button class="btn btn-sm btn-outline-warning me-1" onclick="zmienStatusDzialki(${dzialka.id}, 'Aktywna licytacja')" title="Wystaw na licytację"><i class="bi bi-hammer text-dark"></i></button>`;
+            let statusBtn = '';
             
+            if (dzialka.status === 'Aktywna licytacja') {
+                statusBtn = `<button class="btn btn-sm btn-outline-secondary me-1" onclick="zmienStatusDzialki(${dzialka.id}, 'Dostępna')" title="Wycofaj z licytacji"><i class="bi bi-arrow-down-circle"></i></button>`;
+            } else if (dzialka.status === 'Zakończona licytacja') {
+                statusBtn = `<button class="btn btn-sm btn-outline-secondary me-1" onclick="zmienStatusDzialki(${dzialka.id}, 'Dostępna')" title="Zakończ aukcję i zwolnij zasób"><i class="bi bi-arrow-clockwise"></i></button>`;
+            } else {
+                statusBtn = `<button class="btn btn-sm btn-outline-warning me-1" onclick="zmienStatusDzialki(${dzialka.id}, 'Aktywna licytacja')" title="Wystaw na licytację"><i class="bi bi-hammer text-dark"></i></button>`;
+            }
+            
+            let statusClass = 'bg-success';
+            if (dzialka.status === 'Aktywna licytacja') statusClass = 'bg-warning text-dark';
+            if (dzialka.status === 'Zakończona licytacja') statusClass = 'bg-secondary';
+
             tr.innerHTML = `
                 <td class="fw-bold">${dzialka.numer}</td>
                 <td><code class="small text-muted">POLYGON</code></td>
                 <td>${dzialka.pow}</td>
                 <td><span class="badge bg-${kolor}">${dzialka.typ}</span></td>
                 <td class="fw-bold text-dark">${dzialka.cena}</td>
-                <td><span class="badge ${czyLicytacja ? 'bg-warning text-dark' : 'bg-success'}">${dzialka.status}</span></td>
+                <td><span class="badge ${statusClass}">${dzialka.status}</span></td>
                 <td class="text-end text-nowrap">${statusBtn}<button class="btn btn-sm btn-outline-danger" onclick="usunDzialke(${dzialka.id})" title="Usuń trwale"><i class="bi bi-trash3-fill"></i></button></td>
             `;
             adminTableBody.appendChild(tr);
@@ -113,7 +122,7 @@ function uruchomFiltrowanie() {
             this.classList.add('active');
             const filtr = this.getAttribute('data-filter');
             document.querySelectorAll('.plot-list-card').forEach(karta => {
-                const isLicytacjaCard = karta.dataset.status === 'Aktywna licytacja' || karta.dataset.status === 'Aktywna aukcja';
+                const isLicytacjaCard = karta.dataset.status === 'Aktywna licytacja' || karta.dataset.status === 'Zakończona licytacja';
                 if (filtr === 'all' || karta.dataset.typ === filtr || (filtr === 'Aktywna licytacja' && isLicytacjaCard)) {
                     karta.style.setProperty('display', 'flex', 'important');
                 } else {
@@ -134,9 +143,9 @@ function otworzSzczegoly(dzialka) {
     document.getElementById('modalPricePlot').textContent = dzialka.cena;
     document.getElementById('modalStatusPlot').textContent = dzialka.status;
     document.getElementById('copyTargetNum').textContent = dzialka.numer;
-
+    
     const actionBtn = document.getElementById('modalActionBtn');
-    if (dzialka.status === 'Aktywna aukcja' || dzialka.status === 'Aktywna licytacja') {
+    if (dzialka.status === 'Aktywna licytacja' || dzialka.status === 'Zakończona licytacja') {
         actionBtn.classList.remove('d-none');
         actionBtn.onclick = function () {
             localStorage.setItem('selected_auction_id', dzialka.id);
@@ -162,12 +171,37 @@ window.usunDzialke = async function (id) {
 };
 
 window.zmienStatusDzialki = async function (id, nowyStatus) {
-    if (!(await potwierdzAkcje(`Czy zmienić status działki na: "${nowyStatus}"?`))) return;
+    let payload = { nowyStatus: nowyStatus };
+
+    if (nowyStatus === 'Aktywna licytacja') {
+        let dataInput;
+        if (typeof window.zapytajODate === 'function') {
+            dataInput = await window.zapytajODate("Kiedy zakończyć aukcję?");
+        } else {
+            dataInput = prompt("Podaj datę zakończenia aukcji (RRRR-MM-DD HH:MM) lub zostaw puste dla 7 dni:");
+        }
+        
+        if (dataInput === null) return; 
+        
+        if (dataInput.trim() !== "") {
+            const parsedDate = new Date(dataInput);
+            if (isNaN(parsedDate.getTime()) || parsedDate <= new Date()) {
+                return pokazPowiadomienie("Wybrana data musi być z przyszłości!", "danger");
+            }
+            payload.dataZakonczenia = parsedDate.toISOString();
+        }
+    } else {
+        const akcjaMsg = nowyStatus === 'Dostępna' ? `Czy wycofać działkę #${id} z sekcji aukcji? Zniknie ona całkowicie ze wszystkich ofert publicznych.` : `Czy zmienić status na: "${nowyStatus}"?`;
+        if (!(await potwierdzAkcje(akcjaMsg))) return;
+    }
+
     try {
-        await API.request(`/dzialki/${id}/status`, 'PATCH', { nowyStatus: nowyStatus });
-        pokazPowiadomienie(`Zmieniono status na: ${nowyStatus}`, 'success');
+        await API.request(`/dzialki/${id}/status`, 'PATCH', payload);
+        pokazPowiadomienie(`Zaktualizowano. Status: ${nowyStatus}`, 'success');
         pobierzDaneZSerwera();
-    } catch (error) { pokazPowiadomienie("Błąd zmiany statusu: " + error.message, 'danger'); }
+    } catch (error) { 
+        pokazPowiadomienie("Błąd zmiany statusu: " + error.message, 'danger'); 
+    }
 };
 
 const formNowaDzialka = document.getElementById('formNowaDzialka');
@@ -206,4 +240,15 @@ window.addEventListener('hashchange', () => {
     } 
 });
 
-document.addEventListener('DOMContentLoaded', () => { pobierzDaneZSerwera(); setTimeout(() => map.invalidateSize(), 400); });
+document.addEventListener('DOMContentLoaded', () => { 
+    pobierzDaneZSerwera(); 
+    setTimeout(() => map.invalidateSize(), 400); 
+});
+
+setInterval(() => {
+    if (window.location.hash === '#mapa' || window.location.hash === '') {
+        if (!document.querySelector('.modal.show')) {
+            pobierzDaneZSerwera();
+        }
+    }
+}, 15000);

@@ -29,7 +29,7 @@ router.patch('/wnioski/:id/zatwierdz', verifyAdmin, async (req, res) => {
 router.delete('/wnioski/:id', verifyAdmin, async (req, res) => {
     try {
         await pool.query('DELETE FROM Wnioski_Wadium WHERE id = $1', [req.params.id]);
-        return res.status(200).json({ success: true, message: 'Wniosek odrzucony i usunięty z bazy.' });
+        return res.status(200).json({ success: true, message: 'Wniosek odrzucony.' });
     } catch (error) {
         return res.status(500).json({ error: 'Błąd odrzucania wniosku' });
     }
@@ -37,11 +37,22 @@ router.delete('/wnioski/:id', verifyAdmin, async (req, res) => {
 
 router.get('/', async (req, res) => {
     try {
+        await pool.query("UPDATE Aukcje SET status = 'zakończona' WHERE status = 'aktywna' AND data_zakonczenia <= NOW()");
+        await pool.query(`
+            UPDATE Nieruchomosci n 
+            SET status = 'Zakończona licytacja' 
+            WHERE status = 'Aktywna licytacja' 
+            AND EXISTS (SELECT 1 FROM Aukcje a WHERE a.id_nieruchomosci = n.ID AND a.status = 'zakończona')
+            AND NOT EXISTS (SELECT 1 FROM Aukcje a WHERE a.id_nieruchomosci = n.ID AND a.status = 'aktywna')
+        `);
+
         const userId = req.query.userId || null;
         let query = `
-            SELECT a.*, n.nazwa as nazwa_dzialki, n.powierzchnia, n.przeznaczenie
+            SELECT a.*, n.nazwa as nazwa_dzialki, n.powierzchnia, n.przeznaczenie,
+            (SELECT id_licytanta FROM Licytacje_Log WHERE id_aukcji = a.id ORDER BY kwota_oferowana DESC LIMIT 1) as zwyciezca_id
             FROM Aukcje a JOIN Nieruchomosci n ON a.id_nieruchomosci = n.ID
-            WHERE a.status = 'aktywna' ORDER BY a.id DESC
+            WHERE a.status IN ('aktywna', 'zakończona')
+            ORDER BY a.status ASC, a.id DESC
         `;
         const result = await pool.query(query);
         let aukcje = result.rows;
@@ -52,7 +63,6 @@ router.get('/', async (req, res) => {
             wadiumQuery.rows.forEach(r => wadiumMap[r.id_aukcji] = r.status);
             aukcje = aukcje.map(a => ({ ...a, wadium_status: wadiumMap[a.id] || 'Brak' }));
         }
-
         return res.status(200).json({ success: true, data: aukcje });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Błąd pobierania aukcji' });
@@ -86,8 +96,16 @@ router.post('/:id/bid', async (req, res) => {
             return res.status(403).json({ success: false, message: 'Brak zatwierdzonego wadium dla tej konkretnej aukcji!' });
         }
 
-        const auctionCheck = await pool.query('SELECT aktualna_cena FROM Aukcje WHERE id = $1', [auctionId]);
-        const currentPrice = parseFloat(auctionCheck.rows[0].aktualna_cena);
+        const auctionCheck = await pool.query('SELECT aktualna_cena, status, data_zakonczenia FROM Aukcje WHERE id = $1', [auctionId]);
+        if (auctionCheck.rows.length === 0) return res.status(404).json({ success: false, message: 'Nie znaleziono aukcji.' });
+
+        const aukcjaInfo = auctionCheck.rows[0];
+        
+        if (aukcjaInfo.status !== 'aktywna' || new Date(aukcjaInfo.data_zakonczenia) <= new Date()) {
+            return res.status(400).json({ success: false, message: 'Licytacja została już zakończona. Nie można składać nowych ofert.' });
+        }
+
+        const currentPrice = parseFloat(aukcjaInfo.aktualna_cena);
         const userBid = parseFloat(kwota_oferowana);
 
         if (isNaN(userBid) || userBid <= currentPrice) {
@@ -98,6 +116,7 @@ router.post('/:id/bid', async (req, res) => {
         await pool.query('UPDATE Aukcje SET aktualna_cena = $1 WHERE id = $2', [userBid, auctionId]);
         await pool.query('INSERT INTO Licytacje_Log (id_aukcji, id_licytanta, kwota_oferowana) VALUES ($1, $2, $3)', [auctionId, id_licytanta, userBid]);
         await pool.query('COMMIT');
+
         return res.status(201).json({ success: true, message: 'Oferta zapisana!' });
     } catch (error) {
         await pool.query('ROLLBACK').catch(() => {});

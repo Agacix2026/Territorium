@@ -1,3 +1,5 @@
+let globalAuctionTimer = null;
+
 function pobierzDaneSesji() {
     const token = localStorage.getItem('jwt_token');
     const userString = localStorage.getItem('user_data');
@@ -21,56 +23,78 @@ async function pobierzWszystkieAukcje() {
 function renderAukcje(aukcje, user) {
     const container = document.getElementById('auctions-container');
     if (!container) return;
+    
+    if (globalAuctionTimer) clearInterval(globalAuctionTimer);
+    
     container.innerHTML = '';
-
     if (aukcje.length === 0) {
         container.innerHTML = '<div class="col-12"><div class="alert alert-info shadow-sm p-4 text-center"><i class="bi bi-info-circle fs-4 d-block mb-2 text-info"></i>Aktualnie nie ma żadnych nieruchomości wystawionych na licytację.</div></div>';
         return;
     }
 
+    let hasActiveAuctions = false;
+
     aukcje.forEach(aukcja => {
         const col = document.createElement('div');
         col.className = 'col-md-6 col-lg-6 mb-4';
-
         let actionHtml = '';
 
-        if (!user) {
-            actionHtml = `<div class="alert alert-warning small mb-0 text-center"><i class="bi bi-shield-lock-fill text-warning me-1"></i> Zaloguj się, aby brać udział w aukcji.</div>`;
-        } else if (user.rola === 'Admin') {
-            actionHtml = `<div class="alert alert-secondary small mb-0 text-center">Konto Urzędnika nie może licytować.</div>`;
+        const isEnded = aukcja.status === 'zakończona' || new Date(aukcja.data_zakonczenia) <= new Date();
+
+        if (isEnded) {
+            if (!user) {
+                actionHtml = `<div class="alert alert-secondary small mb-0 text-center">Licytacja zakończona. Zaloguj się, by sprawdzić wyniki.</div>`;
+            } else if (aukcja.zwyciezca_id === user.id) {
+                actionHtml = `<div class="alert alert-success small mb-0 text-center fw-bold"><i class="bi bi-trophy-fill me-1"></i> Gratulacje! Twoja oferta jest najwyższa. Zgłoś się do Urzędu.</div>`;
+            } else if (user.rola === 'Admin') {
+                actionHtml = `<div class="alert alert-secondary small mb-0 text-center">Aukcja zakończona. Wygrana użytkownika ID: ${aukcja.zwyciezca_id || 'Brak ofert'}.</div>`;
+            } else {
+                actionHtml = `<div class="alert alert-danger small mb-0 text-center"><i class="bi bi-x-circle-fill me-1"></i> Licytacja zakończona. Niestety, zwyciężył inny licytant.</div>`;
+            }
         } else {
-            const status = aukcja.wadium_status || 'Brak';
-            if (status === 'Brak') {
-                actionHtml = `
-                    <div class="d-grid">
-                        <button class="btn btn-primary" onclick="zglosWadium(${aukcja.id}, ${user.id})">
-                            <i class="bi bi-cash-coin me-1"></i> Opłać wadium (${parseFloat(aukcja.kwota_wadium).toLocaleString('pl-PL')} PLN)
-                        </button>
-                    </div>`;
-            } else if (status === 'Oczekuje') {
-                actionHtml = `<div class="alert alert-info small mb-0 text-center"><i class="bi bi-hourglass-split text-info me-1"></i> Oczekuje na zaksięgowanie wadium przez Urząd.</div>`;
-            } else if (status === 'Zatwierdzone' || user.rola === 'Licytant') {
-                actionHtml = `
-                    <form class="p-3 bg-light rounded border border-success" onsubmit="licytuj(event, ${aukcja.id}, ${aukcja.aktualna_cena})">
-                        <label class="form-label small fw-bold text-success mb-1"><i class="bi bi-unlock-fill me-1"></i>Panel Licytacji Odblokowany!</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" id="bid-input-${aukcja.id}" min="${parseFloat(aukcja.aktualna_cena) + 1}" placeholder="Min: ${parseFloat(aukcja.aktualna_cena) + 1}" required>
-                            <button class="btn btn-success fw-bold" type="submit">Licytuj</button>
-                        </div>
-                    </form>`;
+            hasActiveAuctions = true;
+            if (!user) {
+                actionHtml = `<div class="alert alert-warning small mb-0 text-center"><i class="bi bi-shield-lock-fill text-warning me-1"></i> Zaloguj się, aby brać udział w aukcji.</div>`;
+            } else if (user.rola === 'Admin') {
+                actionHtml = `<div class="alert alert-secondary small mb-0 text-center">Konto Urzędnika nie może licytować.</div>`;
+            } else {
+                const status = aukcja.wadium_status || 'Brak';
+                if (status === 'Brak') {
+                    actionHtml = `
+                        <div class="d-grid">
+                            <button class="btn btn-primary" onclick="zglosWadium(${aukcja.id}, ${user.id})">
+                                <i class="bi bi-cash-coin me-1"></i> Opłać wadium (${parseFloat(aukcja.kwota_wadium).toLocaleString('pl-PL')} PLN)
+                            </button>
+                        </div>`;
+                } else if (status === 'Oczekuje') {
+                    actionHtml = `<div class="alert alert-info small mb-0 text-center"><i class="bi bi-hourglass-split text-info me-1"></i> Oczekuje na zaksięgowanie wadium przez Urząd.</div>`;
+                } else if (status === 'Zatwierdzone' || user.rola === 'Licytant') {
+                    actionHtml = `
+                        <form class="p-3 bg-light rounded border border-success" onsubmit="licytuj(event, ${aukcja.id}, ${aukcja.aktualna_cena})">
+                            <label class="form-label small fw-bold text-success mb-1"><i class="bi bi-unlock-fill me-1"></i>Panel Licytacji Odblokowany!</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="bid-input-${aukcja.id}" min="${parseFloat(aukcja.aktualna_cena) + 1}" placeholder="Min: ${parseFloat(aukcja.aktualna_cena) + 1}" required>
+                                <button class="btn btn-success fw-bold" type="submit">Licytuj</button>
+                            </div>
+                        </form>`;
+                }
             }
         }
 
+        const statusBadge = isEnded 
+            ? `<span class="badge bg-secondary text-white"><i class="bi bi-lock-fill me-1"></i>Zakończona</span>` 
+            : `<span class="badge bg-warning text-dark auction-countdown" data-endtime="${aukcja.data_zakonczenia}"><i class="bi bi-clock me-1"></i>Odświeżanie czasu...</span>`;
+
         col.innerHTML = `
-            <div class="gov-card h-100 bg-white shadow-sm d-flex flex-column" style="border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.5rem;">
+            <div class="gov-card h-100 bg-white shadow-sm d-flex flex-column" style="border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.5rem; ${isEnded ? 'opacity: 0.85;' : ''}">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <h5 class="fw-bold text-primary mb-0">${aukcja.tytul}</h5>
-                    <span class="badge bg-warning text-dark"><i class="bi bi-hammer me-1"></i>Aktywna</span>
+                    ${statusBadge}
                 </div>
                 <p class="small text-muted flex-grow-1">${aukcja.opis}</p>
                 <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded border">
                     <div>
-                        <span class="d-block small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Aktualna cena</span>
+                        <span class="d-block small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">${isEnded ? 'Cena końcowa' : 'Aktualna cena'}</span>
                         <span class="fs-4 fw-bold text-dark">${parseFloat(aukcja.aktualna_cena).toLocaleString('pl-PL')} <span class="fs-6 text-muted fw-normal">PLN</span></span>
                     </div>
                     <div class="text-end">
@@ -83,6 +107,35 @@ function renderAukcje(aukcje, user) {
         `;
         container.appendChild(col);
     });
+
+    if (hasActiveAuctions) {
+        const updateTimers = () => {
+            let needsRefresh = false;
+            document.querySelectorAll('.auction-countdown').forEach(el => {
+                const endTime = new Date(el.dataset.endtime).getTime();
+                const diff = endTime - new Date().getTime();
+                
+                if (diff <= 0) {
+                    if (!el.dataset.expired) {
+                        el.dataset.expired = "true";
+                        needsRefresh = true;
+                    }
+                } else {
+                    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const s = Math.floor((diff % (1000 * 60)) / 1000);
+                    el.innerHTML = `<i class="bi bi-clock me-1"></i>Koniec za: ${d}d ${h}h ${m}m ${s}s`;
+                }
+            });
+            if (needsRefresh) {
+                clearInterval(globalAuctionTimer);
+                pobierzWszystkieAukcje(); 
+            }
+        };
+        updateTimers(); 
+        globalAuctionTimer = setInterval(updateTimers, 1000);
+    }
 }
 
 window.zglosWadium = async function(aukcjaId, userId) {
@@ -99,7 +152,6 @@ window.licytuj = async function(event, aukcjaId, aktualnaCena) {
     const input = document.getElementById(`bid-input-${aukcjaId}`);
     const kwota = parseFloat(input.value);
     const user = pobierzDaneSesji();
-
     if(kwota <= aktualnaCena) { 
         return pokazPowiadomienie('Twoja oferta musi być wyższa niż aktualna cena!', 'warning'); 
     }
@@ -109,7 +161,7 @@ window.licytuj = async function(event, aukcjaId, aktualnaCena) {
             pokazPowiadomienie('Gratulacje! Oferta została złożona poprawnie.', 'success'); 
             pobierzWszystkieAukcje(); 
         }
-    } catch(e) { pokazPowiadomienie('Błąd odrzucenia oferty: ' + e.message, 'danger'); }
+    } catch(e) { pokazPowiadomienie('Błąd licytacji: ' + e.message, 'danger'); }
 };
 
 window.addEventListener('hashchange', () => { if (window.location.hash === '#aukcje') pobierzWszystkieAukcje(); });
